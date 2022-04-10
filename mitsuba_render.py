@@ -8,6 +8,8 @@ from se3_helpers import *
 import math
 import matplotlib.pyplot as plt
 import spatialmath as sm
+from skimage import exposure
+
 
 def calculate_fov_x_deg(focal_length, sensor_width):
     return 2*np.arctan((sensor_width/2)/(focal_length))*(180/math.pi)
@@ -76,25 +78,56 @@ def render(scene):
     scene.integrator().render(scene, camera)
     film = camera.film()
     bmp = film.bitmap(raw=True)
-    bmp_linear_rgb = bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False)
-    image_np = np.array(bmp_linear_rgb)
-    return image_np
+    img = bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False)
+    img = np.array(img)
+    img = exposure.adjust_gamma(img, 1/2.2)
+    return img
     
 
 def render_scene(object_path, T_CO, cam_intrinsics, hdr_path, material_dict):
     scene = init_scene()
     add_camera(scene, T_CO, cam_intrinsics, 256)
     T_zrot = get_random_z_rot().data[0]
-    add_hdr(scene, hdr_path, 10.0, T_zrot)
+    add_hdr(scene, hdr_path, 0.8, T_zrot)
     add_object_ply(scene, object_path, material_dict)
     print(scene)
     img = render(scene)
     return img
 
 
+def aluminium_sampler():
+    log_sample_alpha_v = np.random.uniform(-0.6, -3)
+    log_sample_alpha_u = np.random.uniform(-0.6, -3)
+    alpha_v = 10**log_sample_alpha_v
+    alpha_u = 10**log_sample_alpha_u
+    
+    alu_mat = {
+        "type":"roughconductor",
+        "material":"Al",
+        "alpha_u":alpha_u,
+        "alpha_v":alpha_v,
+    }
+    material_dict = {
+        "type" : "diffuse",
+        "reflectance": {
+            "type": "rgb",
+            "value": [1.0, 1.0, 1.0]
+        }
+    }
+    blend = {
+        "type" : "blendbsdf",
+        "weight":0.8,
+        "mat1":alu_mat,
+        "mat2":material_dict
+    }
+
+    return alu_mat
+
+
 
 
 if __name__ == '__main__':
+    """
     material_dict = {
         "type" : "diffuse",
         "reflectance": {
@@ -102,6 +135,9 @@ if __name__ == '__main__':
             "value": [0.05, 0.05, 0.05]
         }
     }
+    """
+    material_dict = aluminium_sampler()
+    print(material_dict)
 
     cam_intr = {
         "focal_length":50,
@@ -110,10 +146,11 @@ if __name__ == '__main__':
     }
     obj_path = "airplane_0453.ply"
     hdr_path = "industrial_pipe_and_valve_01_1k.hdr"
-    T_WC = look_at_SE3([2,2,1], [0,0,0], [0,0,1])
+    T_WC = look_at_SE3([1.8,0,0], [0,0,0], [0,0,1])
     T_CO = T_WC.inv().data[0]
 
     img = render_scene(obj_path, T_CO, cam_intr, hdr_path, material_dict)
+    print(img)
     plt.imshow(img)
     plt.show()
 

@@ -1,3 +1,4 @@
+*.ply
 3d-datasets/*/*
 img-datasets/*/*
 
