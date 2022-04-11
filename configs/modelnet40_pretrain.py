@@ -1,4 +1,3 @@
-import torch
 import os
 
 
@@ -24,38 +23,55 @@ def get_config():
             "num_sample_vertices": 1000,  # number of vertices sampled from the mesh
             "dataset_name": "ModelNet40-norm-ply",
             "split":{
-                "train":8000,
-                "validation": 2000,
-                "test": 1000,
+                "train":100,
+                "validation": 10,
+                "test": 10,
             },
 
         },
-        "renderer":{
-            "ground_truth": {
-                "name":"mitsuba", # pyrender or mitsuba
-                "material_sampler": {
-                    "type":"metal",
-                },
-                "samples":512,
-                "path_depth":4,
-            },
-            "guess": {
-                "name":"pyrender", # mitsuba, pyrender or none
-            }
+        "ground_truth_render": {
+            "name":"mitsuba", # pyrender or mitsuba
+            "material_samplers": [
+                metal_sampler("Al", -2, -0.3, 0.8), 
+                metal_sampler("Ag", -2, -0.3, 0.2),
+            ],
+            "samples":256,
+            "path_depth":4,
+            "env_maps_dir": os.path.join("scene-assets", "hdri"),
+            "env_map_types": ["industrial"], # list or constant
+            "env_map_multiplier": 1.0,
+            "rgb_gamma": 2.2,
+        },
+        "guess_render": {
+            "name":"pyrender", # mitsuba, pyrender or none
+            "render_normal":False,
         },
         "camera_intrinsics":{
             "focal_length": 50, #mm
             "sensor_width": 36, #mm
-            "image_resolution": 300, # width=height
+            "image_resolution": 320, # width=height
         },
         "scene_config":{
-            "distance_cam_to_world": 1.8, #meters
+            "distance_cam_to_world": 2.0, #meters
             "distance_cam_to_world_deviation":0.1, #meters
             "world_to_object_gt_transl_deviation": 0.1, #meters
             "world_to_object_transl_deviation": 0.1, #meters
-            "world_to_object_angle_deviation":25, #degrees
+            "world_to_object_angle_deviation":30, #degrees
         },
     }
+
+
+def metal_sampler(chemical_symbol, log_roughness_min, log_roughness_max, probability_weight=1.0):
+    return {
+        "type": "metal_sampler",
+        "chemical_symbol": chemical_symbol,
+        "log_roughness_min": log_roughness_min,
+        "log_roughness_max": log_roughness_max,
+        "probability_weight": probability_weight,
+    }
+
+
+
 
 
 if __name__ == '__main__':

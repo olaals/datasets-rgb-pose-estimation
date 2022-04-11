@@ -72,7 +72,7 @@ def add_camera(scene, T_CO, intrinsics, sample_count):
         },
     }
 
-def render(scene):
+def render(scene, gamma=2.2):
     scene = load_dict(scene)
     camera = scene.sensors()[0]
     scene.integrator().render(scene, camera)
@@ -80,33 +80,79 @@ def render(scene):
     bmp = film.bitmap(raw=True)
     img = bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False)
     img = np.array(img)
-    img = exposure.adjust_gamma(img, 1/2.2)
+    img = exposure.adjust_gamma(img, 1.0/gamma)
     return img
     
 
-def render_scene(object_path, T_CO, cam_intrinsics, hdr_path, material_dict):
-    scene = init_scene()
-    add_camera(scene, T_CO, cam_intrinsics, 256)
+def render_scene(obj_path, path_depth, T_CO, cam_intr, hdr_path, env_scale, material, samples, gamma):
+    scene = init_scene(path_depth)
+    add_camera(scene, T_CO, cam_intr, samples)
     T_zrot = get_random_z_rot().data[0]
-    add_hdr(scene, hdr_path, 0.8, T_zrot)
-    add_object_ply(scene, object_path, material_dict)
-    print(scene)
-    img = render(scene)
+    add_hdr(scene, hdr_path, env_scale, T_zrot)
+    add_object_ply(scene, obj_path, material)
+    img = render(scene, gamma)
     return img
 
+def sample_render_scene(T_CO, obj_path, render_config, camera_config, train_or_test):
+    assert T_CO.shape ==(4,4)
+    samples = render_config["samples"]
+    path_depth = render_config["path_depth"]
+    gamma = render_config["rgb_gamma"]
+    env_mult = render_config["env_map_multiplier"]
+    env_maps_dir = render_config["env_maps_dir"]
+    env_map_types = render_config["env_map_types"]
+    mat_sample_list = render_config["material_samplers"]
 
-def aluminium_sampler():
-    log_sample_alpha_v = np.random.uniform(-0.6, -3)
-    log_sample_alpha_u = np.random.uniform(-0.6, -3)
+    env_path = sample_env_map(env_map_types, env_maps_dir)
+    mat = sample_material(mat_sample_list)
+
+    img = render_scene(obj_path, path_depth, T_CO, camera_config, env_path, env_mult, mat, samples, gamma)
+    return img.astype(np.float32)
+
+
+def sample_env_map(env_map_types, env_maps_dir):
+    env_map_type = np.random.choice(env_map_types)
+    env_map_type_dir = os.path.join(env_maps_dir, env_map_type)
+    env_map_paths = [os.path.join(env_map_type_dir, filename) for filename in os.listdir(env_map_type_dir)]
+    env_map_path = np.random.choice(env_map_paths)
+    return env_map_path
+
+
+
+def sample_material(material_sample_list):
+    prob_list = []
+    for mat_sample in material_sample_list:
+        prob_list.append(mat_sample["probability_weight"])
+    prob_list = np.array(prob_list)*1.0
+    prob_list = prob_list/np.sum(prob_list)
+    sampled_material = np.random.choice(material_sample_list, 1, p=prob_list)
+    if sampled_material["type"] == "metal_sampler":
+        chem_sym = sampled_material["chemical_symbol"]
+        log_r_min = sampled_material["log_roughness_min"]
+        log_r_max = sampled_material["log_roughness_max"]
+        return sample_metal(chem_sym, log_r_min, log_r_max)
+    else:
+        assert False
+
+
+
+
+
+
+def sample_metal(chemical_sym, log_roughness_min=-0.5, log_roughness_max=-2):
+    log_sample_alpha_v = np.random.uniform(log_roughness_min, log_roughness_max)
+    log_sample_alpha_u = np.random.uniform(log_roughness_min, log_roughness_max)
     alpha_v = 10**log_sample_alpha_v
     alpha_u = 10**log_sample_alpha_u
     
-    alu_mat = {
+    metal_material = {
         "type":"roughconductor",
-        "material":"Al",
+        "material":chemical_sym,
         "alpha_u":alpha_u,
         "alpha_v":alpha_v,
     }
+
+    """
     material_dict = {
         "type" : "diffuse",
         "reflectance": {
@@ -120,8 +166,9 @@ def aluminium_sampler():
         "mat1":alu_mat,
         "mat2":material_dict
     }
+    """
 
-    return alu_mat
+    return metal_material
 
 
 
@@ -136,8 +183,8 @@ if __name__ == '__main__':
         }
     }
     """
-    material_dict = aluminium_sampler()
-    print(material_dict)
+    """
+    material = sample_metal("Al")
 
     cam_intr = {
         "focal_length":50,
@@ -149,10 +196,19 @@ if __name__ == '__main__':
     T_WC = look_at_SE3([1.8,0,0], [0,0,0], [0,0,1])
     T_CO = T_WC.inv().data[0]
 
-    img = render_scene(obj_path, T_CO, cam_intr, hdr_path, material_dict)
-    print(img)
+    img = render_scene(obj_path, 4, T_CO, cam_intr, hdr_path, 1.0, material, 128, 2.2)
     plt.imshow(img)
     plt.show()
+    """
+
+    mylist = ["hei", "hei2", "hei3"]
+    probs = np.array([1, 10, 1]).astype(np.float32)
+    probs = probs/np.sum(probs)
+    for i in range(10):
+        choose = np.random.choice(mylist, 1, p=probs)
+        print(choose)
+
+
 
 
 
