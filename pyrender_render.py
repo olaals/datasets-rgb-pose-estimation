@@ -61,8 +61,8 @@ def render_scene(object_path, T_CO, cam_config):
     K = get_camera_matrix(cam_config)
 
     T_CO = sm.SE3.Rx(180, unit='deg').data[0]@T_CO # convert from OpenCV camera frame to OpenGL camera frame
-    scene = pyrender.Scene(ambient_light=[0.3,0.3,0.3])
-    scene.bg_color = (255,0,0)
+    scene = pyrender.Scene(ambient_light=[0.1,0.1,0.1])
+    scene.bg_color = (0,0,0)
     add_object(scene, object_path)
     add_light(scene, T_CO)
     add_camera(scene, T_CO, K)

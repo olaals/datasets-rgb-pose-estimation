@@ -9,6 +9,7 @@ import math
 import matplotlib.pyplot as plt
 import spatialmath as sm
 from skimage import exposure
+import random
 
 
 def calculate_fov_x_deg(focal_length, sensor_width):
@@ -78,9 +79,10 @@ def render(scene, gamma=2.2):
     scene.integrator().render(scene, camera)
     film = camera.film()
     bmp = film.bitmap(raw=True)
-    img = bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False)
-    img = np.array(img)
+    img = np.array(bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False))
+    img = np.where(img<0.0, 0.0, img).astype(np.float32)
     img = exposure.adjust_gamma(img, 1.0/gamma)
+    img = np.where(img>1.0, 1.0, img)
     return img
     
 
@@ -103,18 +105,21 @@ def sample_render_scene(T_CO, obj_path, render_config, camera_config, train_or_t
     env_map_types = render_config["env_map_types"]
     mat_sample_list = render_config["material_samplers"]
 
-    env_path = sample_env_map(env_map_types, env_maps_dir)
+    env_path = sample_env_map(env_map_types, env_maps_dir, train_or_test)
     mat = sample_material(mat_sample_list)
 
     img = render_scene(obj_path, path_depth, T_CO, camera_config, env_path, env_mult, mat, samples, gamma)
     return img.astype(np.float32)
 
 
-def sample_env_map(env_map_types, env_maps_dir):
+def sample_env_map(env_map_types, env_maps_dir, train_or_test):
     env_map_type = np.random.choice(env_map_types)
     env_map_type_dir = os.path.join(env_maps_dir, env_map_type)
-    env_map_paths = [os.path.join(env_map_type_dir, filename) for filename in os.listdir(env_map_type_dir)]
+    env_map_type_test_train = os.path.join(env_map_type_dir, train_or_test)
+    env_map_paths = [os.path.join(env_map_type_test_train, filename) for filename in os.listdir(env_map_type_test_train)]
+    print(env_map_paths)
     env_map_path = np.random.choice(env_map_paths)
+    print(env_map_path)
     return env_map_path
 
 
@@ -125,8 +130,11 @@ def sample_material(material_sample_list):
         prob_list.append(mat_sample["probability_weight"])
     prob_list = np.array(prob_list)*1.0
     prob_list = prob_list/np.sum(prob_list)
-    sampled_material = np.random.choice(material_sample_list, 1, p=prob_list)
-    if sampled_material["type"] == "metal_sampler":
+    print(material_sample_list)
+    sampled_material = np.random.choice(material_sample_list, 1, p=prob_list)[0]
+    print("sampled mat")
+    print(sampled_material)
+    if(sampled_material["type"] == "metal_sampler"):
         chem_sym = sampled_material["chemical_symbol"]
         log_r_min = sampled_material["log_roughness_min"]
         log_r_max = sampled_material["log_roughness_max"]
