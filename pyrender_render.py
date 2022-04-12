@@ -34,7 +34,6 @@ def add_object(scene, path, pose=None):
 def add_light(scene, T_CO):
     assert T_CO.shape == (4,4)
     T_OC = np.linalg.inv(T_CO)
-    print(T_OC)
     light = pyrender.SpotLight(color=np.ones(3), intensity=15.0,
                             innerConeAngle=np.pi/9.0,
                             outerConeAngle=np.pi/2.0)
@@ -43,7 +42,6 @@ def add_light(scene, T_CO):
 def add_camera(scene, T_CO, K):
     assert T_CO.shape == (4,4)
     T_OC = np.linalg.inv(T_CO)
-    print(T_OC)
     fx,fy, ux,uy = K[0,0], K[1,1], K[0,2], K[1,2]
     camera = pyrender.IntrinsicsCamera(fx, fy, ux,uy)
     scene.add(camera, pose=T_OC)

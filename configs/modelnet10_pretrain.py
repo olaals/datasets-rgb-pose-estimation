@@ -33,20 +33,32 @@ def get_config():
         "real_render": {
             "name":"mitsuba", # pyrender or mitsuba
             "material_samplers": [
-                metal_sampler("Al", -2, -0.3, 0.8), 
-                metal_sampler("Ag", -2, -0.3, 0.2),
+                #metal_sampler("Al", -2, -0.3, 0.8), 
+                #metal_sampler("Ag", -2, -0.3, 0.2),
+                texture_sampler("brick", 1.0)
             ],
             "samples":64,
             "path_depth":4,
-            "env_maps_dir": os.path.join("assets", "hdri"),
             "env_map_types": ["industrial"], # list or constant
+            "use_spot_light_no_env":False,
             "env_map_multiplier": 0.8,
             "rgb_gamma": 2.2,
+            "nested_pyrender": None
         },
         "guess_render": {
-            "name":"pyrender", # mitsuba, pyrender or none
-            "render_normal":False,
-            "render_depth":True,
+            "name":"mitsuba", # pyrender or mitsuba
+            "material_samplers": [
+                #metal_sampler("Al", -2, -0.3, 0.8), 
+                #metal_sampler("Ag", -2, -0.3, 0.2),
+                texture_sampler("brick", 1.0)
+            ],
+            "samples":64,
+            "path_depth":4,
+            "env_map_types": ["industrial"], # list or constant
+            "use_spot_light_no_env":True,
+            "env_map_multiplier": 0.8,
+            "rgb_gamma": 2.2,
+            "nested_pyrender": pyrender_conf(True, True)
         },
         "camera_intrinsics":{
             "focal_length": 50, #mm
@@ -60,6 +72,17 @@ def get_config():
             "world_to_object_transl_deviation": 0.1, #meters
             "world_to_object_angle_deviation":30, #degrees
         },
+        "asset_conf":{
+            "env_maps_dir": os.path.join("assets", "hdri"),
+            "texture_dir": os.path.join("assets", "textures"),
+        }
+    }
+
+def pyrender_conf(render_normal=False, render_depth=False):
+    return {
+        "name":"pyrender",
+        "render_normal":render_normal,
+        "render_depth":render_depth,
     }
 
 
@@ -71,6 +94,14 @@ def metal_sampler(chemical_symbol, log_roughness_min, log_roughness_max, probabi
         "log_roughness_max": log_roughness_max,
         "probability_weight": probability_weight,
     }
+
+def texture_sampler(texture_type, probability_weight=1.0):
+    return {
+        "type": "texture_sampler",
+        "texture_type": texture_type,
+        "probability_weight": probability_weight,
+    }
+
 
 
 

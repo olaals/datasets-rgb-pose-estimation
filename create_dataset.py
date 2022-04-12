@@ -2,7 +2,7 @@ from parser_config import get_dict_from_cli
 import os
 import numpy as np
 from se3_helpers import *
-from mitsuba_render import sample_render_scene
+from mitsuba_render import sample_render_scene, sample_material, sample_metal, get_texture
 from pyrender_render import render_scene, render_normals
 import trimesh as tm
 import random
@@ -32,12 +32,12 @@ def sample_mesh_path(class_dir):
     mesh_paths = [os.path.join(class_dir, filename) for filename in os.listdir(class_dir)]
     return np.random.choice(mesh_paths)
 
-def mitsuba_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir):
-    img = sample_render_scene(T_CO, obj_path, render_conf, cam_conf, train_or_test)
+def mitsuba_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir, asset_paths):
+    img = sample_render_scene(T_CO, obj_path, render_conf, cam_conf, train_or_test, asset_paths)
     img_save_path = os.path.join(save_dir, init_or_real+".png")
     save_img_cv2(img, img_save_path)
 
-def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir):
+def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, init_or_real, save_dir):
     img,depth = render_scene(obj_path, T_CO, cam_conf)
     normal = render_normals(obj_path, T_CO, cam_conf)
     img_save_path = os.path.join(save_dir, init_or_real+".png")
@@ -47,28 +47,53 @@ def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_
     save_img_cv2(normal, norm_save_path)
     np.save(depth_save_path, depth)
 
-def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, scene_conf, cam_intr, gt_render_conf, guess_render_conf):
+def sample_texture(texture_class):
+    texture_class_dir = os.path.join("assets", "textures", texture_class)
+    texture_paths = [os.path.join(texture_class_dir, fn) for fn in os.listdir(texture_class_dir)]
+    return random.choice(texture_paths)
+
+def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt):
+    verts = sample_vertices(mesh_path, num_verts=1000)
+    np.save(os.path.join(ex_save_dir, "vertices.npy"), verts)
+    np.save(os.path.join(ex_save_dir, "T_CO_init.npy"), T_CO_init)
+    np.save(os.path.join(ex_save_dir, "T_CO_gt.npy"), T_CO_gt)
+
+
+def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config):
+    gt_render_conf = config["real_render"]
+    guess_render_conf = config["guess_render"]
+    cam_intr = config["camera_intrinsics"]
+    scene_conf = config["scene_config"]
+    asset_conf = config["asset_conf"]
+
+    
+
     os.makedirs(save_dir, exist_ok=True)
     for tr_ex in range(train_exs):
-        example_save_dir = os.path.join(save_dir, "ex"+f'{tr_ex:06d}')
-        os.makedirs(example_save_dir, exist_ok=True)
+        ex_save_dir = os.path.join(save_dir, "ex"+f'{tr_ex:06d}')
+        os.makedirs(ex_save_dir, exist_ok=True)
         T_CO_init, T_CO_gt = get_T_CO_init_and_gt(scene_conf)
         mesh_path = sample_mesh_path(mesh_class_dir)
-        verts = sample_vertices(mesh_path, num_verts=1000)
-        np.save(os.path.join(example_save_dir, "vertices.npy"), verts)
-        np.save(os.path.join(example_save_dir, "T_CO_init.npy"), T_CO_init)
-        np.save(os.path.join(example_save_dir, "T_CO_gt.npy"), T_CO_gt)
+        save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt)
+
         if(gt_render_conf["name"] == "mitsuba"):
-            mitsuba_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, "train", "real", example_save_dir)
+            material_sample_list = gt_render_conf["material_samplers"]
+            gt_render_conf["material"] = sample_material(material_sample_list, asset_conf)
+            mitsuba_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, asset_conf)
         elif(gt_render_conf["name"] == "pyrender"):
-            pass
+            pyrender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, "real", ex_save_dir)
         else:
             assert False
 
         if(guess_render_conf["name"] == "mitsuba"):
-            pass
+            guess_render_conf["material"] = gt_render_conf["material"]
+            mitsuba_handler(T_CO_init, mesh_path, guess_render_conf, cam_intr, dataset_type, "init", ex_save_dir, asset_conf)
+            nest_pyrender = guess_render_conf["nested_pyrender"]
+            if(nest_pyrender is not None):
+                pyrender_handler(T_CO_init, mesh_path, nest_pyrender, cam_intr, "init_py_ren", ex_save_dir)
+
         elif(guess_render_conf["name"] == "pyrender"):
-            pyrender_handler(T_CO_init, mesh_path, guess_render_conf, cam_intr, "train", "init", example_save_dir)
+            pyrender_handler(T_CO_init, mesh_path, guess_render_conf, cam_intr, "init", ex_save_dir)
 
 
 
@@ -80,10 +105,6 @@ def create_dataset(config):
 
 
     general_conf = config["general"]
-    gt_render_conf = config["real_render"]
-    guess_render_conf = config["guess_render"]
-    cam_intr = config["camera_intrinsics"]
-    scene_conf = config["scene_config"]
 
 
     model3d_ds_name = general_conf["dataset_name"]
@@ -111,13 +132,13 @@ def create_dataset(config):
         model3d_class_dir = os.path.join(model3d_ds_path, modelnet_class, "train")
 
         train_class_dir = os.path.join(img_ds_dir, modelnet_class, "train")
-        process_class_dir(train_exs_p_class, "train", model3d_class_dir, train_class_dir, scene_conf, cam_intr, gt_render_conf, guess_render_conf)
+        process_class_dir(train_exs_p_class, "train", model3d_class_dir, train_class_dir, config)
 
         val_class_dir = os.path.join(img_ds_dir, modelnet_class, "validation")
-        process_class_dir(val_exs_p_class, "train", model3d_class_dir, val_class_dir, scene_conf, cam_intr, gt_render_conf, guess_render_conf)
+        process_class_dir(val_exs_p_class, "train", model3d_class_dir, val_class_dir, config)
 
         test_class_dir = os.path.join(img_ds_dir, modelnet_class, "test")
-        process_class_dir(test_exs_p_class, "test", model3d_class_dir, test_class_dir, scene_conf, cam_intr, gt_render_conf, guess_render_conf)
+        process_class_dir(test_exs_p_class, "test", model3d_class_dir, test_class_dir, config)
 
 
 
