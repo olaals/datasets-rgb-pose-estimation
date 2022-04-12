@@ -1,5 +1,6 @@
 import trimesh as tm
 import numpy as np
+import pymeshfix
 import os
 
 
@@ -22,6 +23,15 @@ def decimate_mesh(mesh, ratio):
     simplified = mesh.simplify_quadratic_decimation(new_faces)
     return simplified
 
+def repair_mesh(mesh):
+    tm.repair.fix_normals(mesh)
+    tm.repair.fix_winding(mesh)
+    tm.repair.fill_holes(mesh)
+    tm.repair.fix_inversion(mesh)
+
+def fix_mesh(mesh):
+    vclean, fclean = pymeshfix.clean_from_arrays(mesh.vertices, mesh.faces)
+    return tm.Trimesh(vclean, fclean)
 
 
 def change_extension(filename, new_extension):
@@ -39,7 +49,7 @@ If the assert statement fails, fix the absolute path
 
 ABS_PATH_TO_MODELNET40 = "/home/ola/library/datasets/ModelNet40" 
 OUTPUT_FILE_FORMAT = "ply"
-OUTPUT_DATASET_DIR = "ModelNet40-norm-"+OUTPUT_FILE_FORMAT
+OUTPUT_DATASET_DIR = "ModelNet40-norm-fixed-"+OUTPUT_FILE_FORMAT
 
 ds_path = ABS_PATH_TO_MODELNET40
 classes = os.listdir(ds_path)
@@ -47,6 +57,7 @@ assert "chair" in classes and "sink" in classes and "plant" in classes
 
 os.makedirs(OUTPUT_DATASET_DIR, exist_ok=True)
 train_type = ["test", "train"]
+classes = ["airplane"]
 for classname in classes:
     for train_or_test in train_type:
         print("Processing", classname, "in", train_or_test)
@@ -59,7 +70,7 @@ for classname in classes:
             mesh = tm.load(read_file)
             rescale_mesh(mesh)
             center_mesh_to_centroid(mesh)
-            #mesh = decimate_mesh(mesh, 0.3)
+            #mesh = fix_mesh(mesh)
             tm.exchange.export.export_mesh(mesh, out_file)
 
 

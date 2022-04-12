@@ -6,6 +6,7 @@ all_classes_modelnet40 = ["airplane", "bench", "bowl", "cone", "desk", "flower_p
                           "lamp", "monitor", "piano", "range_hood", "stairs", "tent", "vase", "bed", "bottle", "chair", "curtain",
                           "dresser", "guitar", "laptop", "night_stand", "plant", "sink", "stool", "toilet", "wardrobe"]
 
+all_classes_modelnet10 = ["bathtub", "bed", "chair", "desk", "dresser", "monitor", "night_stand", "sofa", "table", "toilet"]
 
 
 def get_config():
@@ -19,32 +20,33 @@ def get_config():
     return {
         "config_name":this_file_name,
         "general":{
-            "modelnet_classes": ["airplane"], # all_classes or specify indivudal as ["desk", "sofa", "plant"]
+            "modelnet_classes": all_classes_modelnet10, # all_classes or specify indivudal as ["desk", "sofa", "plant"]
             "num_sample_vertices": 1000,  # number of vertices sampled from the mesh
-            "dataset_name": "ModelNet40-norm-ply",
+            "dataset_name": "ModelNet10-norm-clean-ply",
             "split":{
-                "train":100,
-                "validation": 10,
-                "test": 10,
+                "train":16,
+                "validation": 20,
+                "test": 20,
             },
 
         },
-        "ground_truth_render": {
+        "real_render": {
             "name":"mitsuba", # pyrender or mitsuba
             "material_samplers": [
                 metal_sampler("Al", -2, -0.3, 0.8), 
                 metal_sampler("Ag", -2, -0.3, 0.2),
             ],
-            "samples":256,
+            "samples":64,
             "path_depth":4,
-            "env_maps_dir": os.path.join("scene-assets", "hdri"),
+            "env_maps_dir": os.path.join("assets", "hdri"),
             "env_map_types": ["industrial"], # list or constant
-            "env_map_multiplier": 1.0,
+            "env_map_multiplier": 0.8,
             "rgb_gamma": 2.2,
         },
         "guess_render": {
             "name":"pyrender", # mitsuba, pyrender or none
             "render_normal":False,
+            "render_depth":True,
         },
         "camera_intrinsics":{
             "focal_length": 50, #mm
@@ -52,7 +54,7 @@ def get_config():
             "image_resolution": 320, # width=height
         },
         "scene_config":{
-            "distance_cam_to_world": 2.0, #meters
+            "distance_cam_to_world": 2.5, #meters
             "distance_cam_to_world_deviation":0.1, #meters
             "world_to_object_gt_transl_deviation": 0.1, #meters
             "world_to_object_transl_deviation": 0.1, #meters
