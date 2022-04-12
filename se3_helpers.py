@@ -86,7 +86,9 @@ def get_T_CO_init_and_gt(scene_config):
     T_CW = get_T_CW(dist_CW, dist_CW_dev)
     T_CO_gt = T_CW*T_WO_gt
     T_CO_init_guess = T_CW*T_WO_init_guess
-    return T_CO_init_guess, T_CO_gt
+    T_CO_init = T_CO_init_guess.data[0].astype(np.float32)
+    T_CO_gt = T_CO_gt.data[0].astype(np.float32)
+    return T_CO_init, T_CO_gt
 
 
 
