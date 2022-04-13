@@ -8,6 +8,7 @@ import trimesh as tm
 import random
 import matplotlib.pyplot as plt
 import cv2
+import yaml
 
 def save_img_cv2(img, path):
     cv_img = (img*254.01).astype(np.uint8)
@@ -39,13 +40,20 @@ def mitsuba_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_o
 
 def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, init_or_real, save_dir):
     img,depth = render_scene(obj_path, T_CO, cam_conf)
-    normal = render_normals(obj_path, T_CO, cam_conf)
     img_save_path = os.path.join(save_dir, init_or_real+".png")
     norm_save_path = os.path.join(save_dir, init_or_real+"_normal.png")
     depth_save_path = os.path.join(save_dir, init_or_real+"_depth.npy")
     save_img_cv2(img, img_save_path)
-    save_img_cv2(normal, norm_save_path)
-    np.save(depth_save_path, depth)
+    
+    rend_normal = render_conf["render_normal"]
+    rend_depth = render_conf["render_depth"]
+
+    if rend_normal:
+        normal = render_normals(obj_path, T_CO, cam_conf)
+        save_img_cv2(normal, norm_save_path)
+
+    if rend_depth:
+        np.save(depth_save_path, depth)
 
 def sample_texture(texture_class):
     texture_class_dir = os.path.join("assets", "textures", texture_class)
@@ -57,6 +65,17 @@ def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt):
     np.save(os.path.join(ex_save_dir, "vertices.npy"), verts)
     np.save(os.path.join(ex_save_dir, "T_CO_init.npy"), T_CO_init)
     np.save(os.path.join(ex_save_dir, "T_CO_gt.npy"), T_CO_gt)
+    metadata = {}
+    split = os.path.normpath(mesh_path).split(os.sep)
+    metadata["mesh_filename"] = os.path.basename(mesh_path)
+    metadata["train_or_test"] = split[-2]
+    metadata["mesh_class"] = split[-3]
+    metadata["dataset_name"] = split[-4]
+    metadata["unix_mesh_path"] = os.path.join(split[-4], split[-3], split[-2], split[-1])
+    metadata_save_path = os.path.join(ex_save_dir, "metadata.yml")
+    with open(metadata_save_path, 'w') as outfile:
+        yaml.dump(metadata, outfile, default_flow_style=False)
+
 
 
 def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config):
@@ -65,6 +84,8 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
     cam_intr = config["camera_intrinsics"]
     scene_conf = config["scene_config"]
     asset_conf = config["asset_conf"]
+
+    
 
     
 
