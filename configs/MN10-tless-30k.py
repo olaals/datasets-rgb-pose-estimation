@@ -24,9 +24,9 @@ def get_config():
             "num_sample_vertices": 1000,  # number of vertices sampled from the mesh
             "dataset_name": "ModelNet10-norm-clean-ply",
             "split":{
-                "train":20000,
-                "validation": 500,
-                "test": 500,
+                "train":30000,
+                "validation": 1000,
+                "test": 1000,
             },
 
         },
