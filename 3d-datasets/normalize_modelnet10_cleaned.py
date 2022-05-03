@@ -1,6 +1,6 @@
 import trimesh as tm
 import numpy as np
-import pymeshfix
+#import pymeshfix
 import os
 
 

@@ -123,6 +123,9 @@ def create_dataset(config):
     config_name = config["config_name"]
     img_ds_dir = os.path.join("img-datasets", config_name)
     os.makedirs(img_ds_dir, exist_ok=True)
+    save_conf_path = os.path.join(img_ds_dir, "config.yml")
+    with open(save_conf_path, 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)
 
 
     general_conf = config["general"]
