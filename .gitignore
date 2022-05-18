@@ -1,6 +1,7 @@
 *.ply
 3d-datasets/*/*
 img-datasets/*/*
+texture-datasets/*/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
