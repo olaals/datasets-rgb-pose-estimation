@@ -22,6 +22,7 @@ def get_config():
         "config_name":this_file_name,
         "modelnet_classes": all_classes_modelnet10, # all_classes or specify indivudal as ["desk", "sofa", "plant"]
         "texture_classes": all_texture_classes,
+        "texture_dataset": "dtd-textures",
         "blender_exec_path":"/home/ola/library/blender312/blender",
 
     }
