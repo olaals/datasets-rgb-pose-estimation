@@ -12,7 +12,12 @@ def set_renderer(render_engine):
     if(render_engine == 'cycles'):
         bpy.context.scene.render.engine = 'CYCLES'
 
-def render(write_path):
+def set_render_settings(img_res):
+    bpy.context.scene.render.resolution_y = img_res
+    bpy.context.scene.render.resolution_x = img_res
+
+def render(write_path, img_res):
+    set_render_settings(img_res)
     bpy.context.view_layer.update()
     bpy.context.scene.render.filepath = write_path
     bpy.ops.render.render('INVOKE_DEFAULT', animation=False, write_still=True, use_viewport=False, scene="scene")
@@ -24,9 +29,11 @@ def set_cycles_gpu_device():
     prefs.compute_device_type = 'CUDA'
     prefs.compute_device = 'CUDA_0'
 
-def spawn_camera(T_WC):
+def spawn_camera(T_WC, camera_config):
     camera_data = bpy.data.cameras.new(name='Camera')
     camera_object = bpy.data.objects.new('Camera', camera_data)
+    camera_object.data.lens = camera_config["focal_length"]
+    camera_object.data.sensor_width = camera_config["sensor_width"]
     bpy.context.scene.collection.objects.link(camera_object)
     camera_object.matrix_world = T_WC.T
     bpy.context.scene.camera = camera_object
@@ -92,9 +99,9 @@ render_config = bl_conf["render_config"]
 
 cam = scene_config["camera"]
 cam_config = scene_config["camera"]
+img_res = cam_config["image_resolution"]
 T_WC = cam_config["transform"]
-spawn_camera(T_WC)
-
+spawn_camera(T_WC, cam_config)
 
 
 write_path = render_config["write_path"]
@@ -103,7 +110,7 @@ write_path = render_config["write_path"]
 set_cycles_gpu_device()
 renderer = render_config["engine"]
 set_renderer(renderer)
-render(write_path)
+render(write_path, img_res)
 
 
 
