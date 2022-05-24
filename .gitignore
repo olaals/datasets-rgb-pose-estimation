@@ -1,3 +1,5 @@
+scene.blend
+blender-cache/bl_conf_tex.pkl
 *.ply
 3d-datasets/*/*
 img-datasets/*/*
