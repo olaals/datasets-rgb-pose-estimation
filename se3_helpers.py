@@ -94,8 +94,15 @@ def get_T_CO_init_and_gt(scene_config):
 
 
 if __name__ == '__main__':
-    config = get_config()
-    T_CO_init, T_CO_gt = get_T_CO_init_and_gt(config)
+    scene_config={
+        "distance_cam_to_world": 2.5, #meters
+        "distance_cam_to_world_deviation":0.1, #meters
+        "world_to_object_gt_transl_deviation": 0.1, #meters
+        "world_to_object_transl_deviation": 0.1, #meters
+        "world_to_object_angle_deviation":30, #degrees
+    }
+
+    T_CO_init, T_CO_gt = get_T_CO_init_and_gt(scene_config)
     print(T_CO_init)
     print(T_CO_gt)
 

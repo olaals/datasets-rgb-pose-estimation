@@ -23,7 +23,7 @@ def get_config():
         "general":{
             "texture_dataset": "texture-datasets/dtd-textures",
             "object_dataset": "3d-datasets/ModelNet10-norm-clean-ply",
-            "new_texture_dataset": "3d-datasets/ModelNet10-texturized",
+            "new_texture_dataset": "3d-datasets/ModelNet10-texturized2",
         },
         "dataset_split":{
             "train": 100,

@@ -25,6 +25,7 @@ def texturize_object(mesh_path, blender_conf, save_path, texture_path):
     return texturize_conf
 
 def texturize(bl_conf):
+    print(bl_conf)
     mesh_path = bl_conf["mesh_path"]
     texture_path = bl_conf["texture_path"]
     save_path = bl_conf["save_path"]
@@ -37,6 +38,7 @@ def texturize(bl_conf):
         filepath=save_path,
         use_selection=True,
         export_draco_mesh_compression_enable=use_draco_compression,
+        export_yup=False,
     )
 
 

@@ -5,15 +5,27 @@ import subprocess
 from se3_helpers import look_at_SE3
 import spatialmath as sm
 import matplotlib.pyplot as plt
+from spatialmath.base import trnorm
 
-def add_camera(scene, intrinsics, T_WC):
-    assert T_WC.shape == (4,4)
-    #rot_z_180 = sm.SE3.Rz(180, unit='deg').data[0]
-    rot_x_180 = sm.SE3.Rx(180, unit='deg').data[0]
-    T_WC = T_WC@rot_x_180
-    T_WC_sm = sm.SE3(T_WC)
-    T_WC_sm.plot()
+def plot_SE3(T):
+    T = trnorm(T)
+    R = sm.SO3(trnorm(T[:3,:3]))
+    T = sm.SE3.Rt(R, T[:3,3])
+    print("T_WC")
+    print(T.data[0])
+    T_orig = sm.SE3.Rx(0)
+    T_orig.plot(color='red')
+    T.plot( dims=[-3, 3, -3, 3, -3, 3])
     plt.show()
+
+
+def add_camera(scene, intrinsics, T_CO):
+    #rot_z_180 = sm.SE3.Rz(180, unit='deg').data[0]
+    T_CO = sm.SE3.Rx(180, unit='deg').data[0]@T_CO
+    T_WC = np.linalg.inv(T_CO)
+    #plot_SE3(T_WC)
+    print("T_WC blender", T_WC)
+
     scene["camera"] = intrinsics
     scene["camera"]["transform"] = T_WC
 
@@ -47,11 +59,14 @@ def cycles_render_conf(device, write_path):
         "write_path": write_path,
     }
 
+
+
 def bl_render_scene(blender_conf, obj_path, T_CO, cam_intr, hdr_path, env_intsy, save_path):
+    print(T_CO)
+    
     scene = init_scene()
     add_object(scene, obj_path, np.identity(4))
-    T_WC = T_CO.inv().data[0]
-    add_camera(scene, cam_intr, T_WC)
+    add_camera(scene, cam_intr, T_CO)
     render_conf = cycles_render_conf("gpu", save_path)
     add_hdr(scene, hdr_path, env_intsy, 0.0)
     bl_exec_path = blender_conf["exec_path"]

@@ -35,12 +35,19 @@ def spawn_camera(T_WC, camera_config):
     camera_object.data.lens = camera_config["focal_length"]
     camera_object.data.sensor_width = camera_config["sensor_width"]
     bpy.context.scene.collection.objects.link(camera_object)
+    print("Actual",T_WC)
     camera_object.matrix_world = T_WC.T
+    print("Cam obj",camera_object.matrix_world)
     bpy.context.scene.camera = camera_object
+    bpy.context.view_layer.update()
     print(bpy.context.scene.collection.objects[0])
 
 def add_ply(file_path):
     bpy.ops.import_mesh.ply(filepath = file_path)
+
+def add_glb(file_path):
+    print(f'\n glb file path: {file_path}\n')
+    bpy.ops.import_scene.gltf(filepath=file_path)
 
 def add_hdr(hdr_path):
     C = bpy.context
@@ -90,7 +97,13 @@ objects = scene_config["objects"]
 for obj in objects:
     mesh_path = obj["path"]
     print(mesh_path)
-    add_ply(mesh_path)
+    _, mesh_filetype = os.path.splitext(mesh_path)
+    if(mesh_filetype == '.ply'):
+        add_ply(mesh_path)
+    elif(mesh_filetype == '.glb'):
+        add_glb(mesh_path)
+    else:
+        assert False
 hdr = scene_config["hdr"]
 hdr_path = hdr["path"]
 add_hdr(hdr_path)
