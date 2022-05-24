@@ -28,6 +28,7 @@ def texturize(bl_conf):
     mesh_path = bl_conf["mesh_path"]
     texture_path = bl_conf["texture_path"]
     save_path = bl_conf["save_path"]
+    use_draco_compression = bl_conf["use_draco_compression"]
     add_ply(mesh_path)
     smart_project_uv()
     ob = bpy.context.active_object
@@ -35,6 +36,7 @@ def texturize(bl_conf):
     bpy.ops.export_scene.gltf(
         filepath=save_path,
         use_selection=True,
+        export_draco_mesh_compression_enable=use_draco_compression,
     )
 
 

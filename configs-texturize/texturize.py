@@ -20,10 +20,29 @@ def get_config():
     print("Config file name:", this_file_name)
     return {
         "config_name":this_file_name,
-        "modelnet_classes": all_classes_modelnet10, # all_classes or specify indivudal as ["desk", "sofa", "plant"]
-        "texture_classes": all_texture_classes,
-        "texture_dataset": "dtd-textures",
-        "blender_exec_path":"/home/ola/library/blender312/blender",
-
+        "general":{
+            "texture_dataset": "texture-datasets/dtd-textures",
+            "object_dataset": "3d-datasets/ModelNet10-norm-clean-ply",
+            "new_dataset": "3d-datasets/ModelNet10-texturized"
+        },
+        "dataset_split":{
+            "train": 50,
+            "test": 30,
+        },
+        "train_config":{
+            "modelnet_classes": all_classes_modelnet10, # all_classes or specify indivudal as ["desk", "sofa", "plant"]
+            "texture_classes": all_texture_classes,
+        },
+        "test_config":{
+            "modelnet_classes": all_classes_modelnet10,
+            "texture_classes": all_texture_classes,
+        },
+        "blender_config":{
+            "blender_exec_path":"/home/ola/library/blender312/blender",
+            "py_script_path": "blender-cache/tex_script.py",
+            "cache_dir": "blender-cache",
+            "use_draco_compression":False,
+            "filetype":"glb",
+        },
     }
 
