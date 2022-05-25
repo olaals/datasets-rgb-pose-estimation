@@ -10,6 +10,7 @@ import pyrender
 from PIL import Image
 from se3_helpers import get_T_CO_init_and_gt
 from pyrender.constants import RenderFlags
+from spatialmath.base import trnorm
 
 
 def get_camera_matrix(intrinsics):
@@ -23,13 +24,27 @@ def get_camera_matrix(intrinsics):
     return K
 
 
-def add_object(scene, path, pose=None):
+def add_object(scene, path, pose=None, force_mesh=False):
     if(pose is None):
         pose = sm.SE3.Rx(0).data[0]
-    trimesh_mesh = tm.load(path)
+    if force_mesh:
+        trimesh_mesh = tm.load(path, force='mesh')
+    else:
+        trimesh_mesh = tm.load(path)
     #mat = pyrender.Material(doubleSided=True)
-    mesh = pyrender.Mesh.from_trimesh(trimesh_mesh)
-    scene.add(mesh, pose=pose)
+    if(isinstance(trimesh_mesh, tm.scene.scene.Scene)):
+        for m in list(trimesh_mesh.geometry.values()):
+            if(os.path.splitext(path)[1] == '.glb'): # correction for glb export from blender
+                rx = sm.SE3.Rx(90, unit='deg')
+                m = m.apply_transform(rx.data[0])
+            mesh = pyrender.Mesh.from_trimesh(m, smooth=False)
+            scene.add(mesh)
+    else:
+        if(os.path.splitext(path)[1] == '.glb'): # correction for glb export from blender
+            rx = sm.SE3.Rx(90, unit='deg')
+            trimesh_mesh = trimesh_mesh.apply_transform(rx.data[0])
+        mesh = pyrender.Mesh.from_trimesh(trimesh_mesh, smooth=False)
+        scene.add(mesh, pose=pose)
 
 def add_light(scene, T_CO):
     assert T_CO.shape == (4,4)
@@ -39,9 +54,19 @@ def add_light(scene, T_CO):
                             outerConeAngle=np.pi/2.0)
     scene.add(light, pose=T_OC)
 
+def plot_SE3(T):
+    T = trnorm(T)
+    R = sm.SO3(trnorm(T[:3,:3]))
+    T = sm.SE3.Rt(R, T[:3,3])
+    T_orig = sm.SE3.Rx(0)
+    T_orig.plot(color='red')
+    T.plot( dims=[-3, 3, -3, 3, -3, 3])
+    plt.show()
+
 def add_camera(scene, T_CO, K):
     assert T_CO.shape == (4,4)
     T_OC = np.linalg.inv(T_CO)
+    #plot_SE3(T_OC)
     fx,fy, ux,uy = K[0,0], K[1,1], K[0,2], K[1,2]
     camera = pyrender.IntrinsicsCamera(fx, fy, ux,uy)
     scene.add(camera, pose=T_OC)
@@ -88,7 +113,7 @@ def render_normals(object_path, T_CO, cam_config):
     T_identity = sm.SE3.Rx(0).data[0]
     scene = pyrender.Scene()
     scene.bg_color = (0,0,0)
-    add_object(scene, object_path, pose=T_CO)
+    add_object(scene, object_path, pose=T_CO, force_mesh=True)
     add_camera(scene, T_identity, K)
     renderer = pyrender.OffscreenRenderer(img_size, img_size)
     renderer._renderer._program_cache = CustomShaderCache()

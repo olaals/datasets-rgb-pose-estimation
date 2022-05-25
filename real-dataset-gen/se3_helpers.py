@@ -30,7 +30,6 @@ def get_random_z_rot():
     T_zrot = sm.SE3.Rz(z_rot, unit='deg')
     return T_zrot
 
-
 def get_random_unit_axis():
     # not perfectly random, as points are sampled uniformly in a cube then normalized to unit length
     random_axis = np.random.random(3)-0.5
@@ -86,23 +85,14 @@ def get_T_CO_init_and_gt(scene_config):
     T_CW = get_T_CW(dist_CW, dist_CW_dev)
     T_CO_gt = T_CW*T_WO_gt
     T_CO_init_guess = T_CW*T_WO_init_guess
-    T_CO_init = T_CO_init_guess.data[0].astype(np.float32)
-    T_CO_gt = T_CO_gt.data[0].astype(np.float32)
-    return T_CO_init, T_CO_gt
+    return T_CO_init_guess, T_CO_gt
 
 
 
 
 if __name__ == '__main__':
-    scene_config={
-        "distance_cam_to_world": 2.5, #meters
-        "distance_cam_to_world_deviation":0.1, #meters
-        "world_to_object_gt_transl_deviation": 0.1, #meters
-        "world_to_object_transl_deviation": 0.1, #meters
-        "world_to_object_angle_deviation":30, #degrees
-    }
-
-    T_CO_init, T_CO_gt = get_T_CO_init_and_gt(scene_config)
+    config = get_config()
+    T_CO_init, T_CO_gt = get_T_CO_init_and_gt(config)
     print(T_CO_init)
     print(T_CO_gt)
 

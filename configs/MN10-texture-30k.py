@@ -1,11 +1,6 @@
 import os
 
 
-all_classes_modelnet40 = ["airplane", "bench", "bowl", "cone", "desk", "flower_pot", "keyboard", "mantel", "person", "radio",
-                          "sofa", "table", "tv_stand", "xbox", "bathtub", "bookshelf", "car", "cup", "door", "glass_box",
-                          "lamp", "monitor", "piano", "range_hood", "stairs", "tent", "vase", "bed", "bottle", "chair", "curtain",
-                          "dresser", "guitar", "laptop", "night_stand", "plant", "sink", "stool", "toilet", "wardrobe"]
-
 all_classes_modelnet10 = ["bathtub", "bed", "chair", "desk", "dresser", "monitor", "night_stand", "sofa", "table", "toilet"]
 
 
@@ -22,27 +17,21 @@ def get_config():
         "general":{
             "modelnet_classes": all_classes_modelnet10, # all_classes or specify indivudal as ["desk", "sofa", "plant"]
             "num_sample_vertices": 1000,  # number of vertices sampled from the mesh
-            "dataset_name": "ModelNet10-norm-clean-ply",
+            "dataset_name": "ModelNet10-texturized",
+            #"dataset_name": "ModelNet10-norm-clean-ply",
             "split":{
-                "train":20000,
-                "validation": 500,
-                "test": 500,
+                "train":30000,
+                "validation": 160,
+                "test": 1000,
             },
 
         },
         "real_render": {
-            "name":"mitsuba", # pyrender or mitsuba
-            "material_samplers": [
-                metal_sampler("Al", -2, -0.3, 1.0), 
-                #metal_sampler("Ag", -2, -0.3, 0.2),
-                #texture_sampler("brick", 1.0)
-            ],
-            "samples":128,
-            "path_depth":4,
-            "env_map_types": ["industrial"], # list or constant
-            "use_spot_light_no_env":False,
-            "env_map_multiplier": 0.8,
-            "rgb_gamma": 2.2,
+            "name":"blender", # pyrender or mitsuba
+            "env_map_types": ["industrial", "indoor", "outdoor-day"], # list or constant
+            "exec_path":"/home/ola/library/blender312/blender",
+            "py_script_path":"blender-cache/script.py",
+            "cache_dir":"blender-cache",
             "nested_pyrender": None,
         },
         "guess_render": pyrender_conf(True,True),

@@ -1,6 +1,9 @@
+scene.blend
+blender-cache/bl_conf_tex.pkl
 *.ply
 3d-datasets/*/*
 img-datasets/*/*
+texture-datasets/*/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

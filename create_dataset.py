@@ -4,6 +4,7 @@ import numpy as np
 from se3_helpers import *
 from mitsuba_render import sample_render_scene, sample_material, sample_metal, get_texture
 from pyrender_render import render_scene, render_normals
+from blender_render import bl_render_scene
 import trimesh as tm
 import random
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ def save_img_cv2(img, path):
     cv2.imwrite(path, cv_img)
 
 def get_vertices(mesh_path):
-    mesh = tm.load(mesh_path)
+    mesh = tm.load(mesh_path, force='mesh')
     vertices = mesh.vertices
     return vertices
 
@@ -55,12 +56,30 @@ def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, init_or_real, save_d
     if rend_depth:
         np.save(depth_save_path, depth)
 
+def sample_env_map(env_map_types, env_maps_dir, train_or_test):
+    env_map_class = random.choice(env_map_types)
+    print(env_map_class)
+    env_map_class_dir = os.path.join(env_maps_dir, env_map_class, train_or_test)
+    print(env_map_class_dir)
+    env_map_paths = [os.path.join(env_map_class_dir, filename) for filename in os.listdir(env_map_class_dir)]
+    print(env_map_paths)
+    sampled_env_map = random.choice(env_map_paths) 
+    if(os.path.isdir(sampled_env_map)):
+        assert False
+    return sampled_env_map
+
+
+def blender_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir, env_map_path):
+    img_save_path = os.path.join(save_dir, init_or_real+".png")
+    bl_render_scene(render_conf, obj_path, T_CO, cam_conf, env_map_path, 1.0, img_save_path)
+
+
 def sample_texture(texture_class):
     texture_class_dir = os.path.join("assets", "textures", texture_class)
     texture_paths = [os.path.join(texture_class_dir, fn) for fn in os.listdir(texture_class_dir)]
     return random.choice(texture_paths)
 
-def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt):
+def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path):
     verts = sample_vertices(mesh_path, num_verts=1000)
     np.save(os.path.join(ex_save_dir, "vertices.npy"), verts)
     np.save(os.path.join(ex_save_dir, "T_CO_init.npy"), T_CO_init)
@@ -72,6 +91,8 @@ def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt):
     metadata["mesh_class"] = split[-3]
     metadata["dataset_name"] = split[-4]
     metadata["unix_mesh_path"] = os.path.join(split[-4], split[-3], split[-2], split[-1])
+    if(env_map_path is not None):
+        metadata["env_map_path"] = env_map_path
     metadata_save_path = os.path.join(ex_save_dir, "metadata.yml")
     with open(metadata_save_path, 'w') as outfile:
         yaml.dump(metadata, outfile, default_flow_style=False)
@@ -85,17 +106,17 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
     scene_conf = config["scene_config"]
     asset_conf = config["asset_conf"]
 
-    
-
-    
-
     os.makedirs(save_dir, exist_ok=True)
     for tr_ex in range(train_exs):
         ex_save_dir = os.path.join(save_dir, "ex"+f'{tr_ex:06d}')
         os.makedirs(ex_save_dir, exist_ok=True)
         T_CO_init, T_CO_gt = get_T_CO_init_and_gt(scene_conf)
         mesh_path = sample_mesh_path(mesh_class_dir)
-        save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt)
+        env_map_path = None
+        if("env_map_types" in gt_render_conf):
+            env_map_types = gt_render_conf["env_map_types"]
+            env_map_path = sample_env_map(env_map_types, asset_conf["env_maps_dir"], dataset_type)
+        save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path)
 
         if(gt_render_conf["name"] == "mitsuba"):
             material_sample_list = gt_render_conf["material_samplers"]
@@ -103,6 +124,8 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
             mitsuba_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, asset_conf)
         elif(gt_render_conf["name"] == "pyrender"):
             pyrender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, "real", ex_save_dir)
+        elif(gt_render_conf["name"] == "blender"):
+            blender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, env_map_path)
         else:
             assert False
 
