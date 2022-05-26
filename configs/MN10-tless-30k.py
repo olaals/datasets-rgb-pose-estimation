@@ -30,9 +30,18 @@ def get_config():
             },
 
         },
-        "real_render": pyrender_conf(),
-        "guess_render": pyrender_conf(),
-        
+        "real_render": {
+            "name":"mitsuba", # pyrender or mitsuba
+            "material_samplers": None,
+            "samples":512,
+            "path_depth":4,
+            "env_map_types": ["industrial", "outdoor-day", "indoor"], # list or constant
+            "use_spot_light_no_env":False,
+            "env_map_multiplier": 0.8,
+            "rgb_gamma": 2.2,
+            "nested_pyrender": None,
+        },
+        "guess_render": pyrender_conf(True,True),
         "camera_intrinsics":{
             "focal_length": 50, #mm
             "sensor_width": 36, #mm

@@ -27,11 +27,18 @@ def init_scene(path_depth=4):
 
 def add_object_ply(scene, path, material_dict):
     filename = os.path.splitext(os.path.split(path)[-1])[0]
-    scene[filename] = {
-        "type":"ply",
-        "filename":path,
-        "mat":material_dict
-    }
+    if(material_dict is not None):
+        scene[filename] = {
+            "type":"ply",
+            "filename":path,
+            "mat":material_dict
+        }
+    else:
+        scene[filename] = {
+            "type":"ply",
+            "filename":path,
+        }
+
 
 def add_hdr(scene, path, scale, T_zrot):
     rot_x_90 = sm.SE3.Rx(90, unit='deg').data[0]

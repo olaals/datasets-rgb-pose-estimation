@@ -14,6 +14,7 @@ def add_config_cli_input():
 def get_config_from_args(args):
     sys.path.append("configs")
     sys.path.append("configs-texturize")
+    sys.path.append("configs-real-datagen")
     config_name = args.config
     config_path = os.path.splitext(os.path.split(config_name)[-1])[0]
     config_import = import_module(config_path)

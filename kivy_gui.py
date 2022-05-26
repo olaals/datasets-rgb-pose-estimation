@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from se3_helpers import look_at_SE3
 import spatialmath as sm
-from renderer import render_scene
+from pyrender_render import render_scene
 import time
 import matplotlib.pyplot as plt
 import os
@@ -34,7 +34,6 @@ class PoseInitSidebar(BoxLayout):
         self.decrement_rot_button.bind(on_press=self.decrement_rot_callback)
         self.show_overlap_btn = Button(text="Show current overlap", size_hint=(1.0,None), height=30)
         self.show_overlap_btn.bind(on_press=self.show_overlap_cb)
-
         self.continue_button = Button(text="Continue to PnP", size_hint=(1.0, None), height=30)
         self.continue_button.bind(on_press=self.continue_button_callback)
         self.add_widget(self.increment_rot_button)
@@ -43,6 +42,7 @@ class PoseInitSidebar(BoxLayout):
         self.add_widget(self.continue_button)
         self.empty_widget = Widget()
         self.add_widget(self.empty_widget)
+        print("Initiated sidebar")
 
     def show_overlap_cb(self, instance):
         self.pose_init.overlap_imgs()
@@ -71,7 +71,9 @@ class PoseInitSidebar(BoxLayout):
         self.select_pair_button = Button(text="Select pixel pair", size_hint=(1.0, None), height=30)
         self.select_pair_button.bind(on_press=self.select_pair_callback)
         self.solve_pnp = Button(text="Solve PnP", size_hint=(1.0,0), height=30)
+        self.save_pose_btn = Button(text="Save pose", size_hint=(1.0,0), height=30)
         self.solve_pnp.bind(on_press=self.solve_pnp_callback)
+        self.save_pose_btn.bind(on_press=self.save_pose_callback)
         self.add_widget(self.select_pair_button)
         self.add_widget(self.solve_pnp)
         self.add_widget(Widget())
@@ -86,6 +88,9 @@ class PoseInitSidebar(BoxLayout):
         print("Solving pnp")
         img = self.pose_init.solve_pnp()
         self.left_img.update(img)
+
+    def save_pose_callback(self, instance):
+        self.pose_init.save_pose()
 
 
 
@@ -111,7 +116,10 @@ class PoseInitGUI(App):
         self.right_img.update(real_img)
         rendered_img = self.pose_init.get_rendered_image()
         self.left_img.update(cv2.cvtColor(np.uint8(rendered_img*255), cv2.COLOR_RGB2BGR))
+
+        print("Finished building GUI")
         return layout
+
 
 class ImageDisplay(Image):
     def __init__(self):
@@ -130,12 +138,13 @@ class ImageDisplay(Image):
         image_texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         # display image from the texture
         self.texture = image_texture
+        print("updated image for gui")
 
 
 class PoseInit():
-    def __init__(self, K, cam_config, real_path, model3d_path, num_options=16, z_incr=0.1):
+    def __init__(self, K, img_size, real_path, model3d_path, gt_pose_save_path, num_options=16, z_incr=0.1):
         self.K = K
-        self.cam_config = cam_config
+        self.img_size = img_size
         self.real_path = real_path
         self.model3d_path = model3d_path
         self.num_options = num_options
@@ -147,6 +156,11 @@ class PoseInit():
         self.selected_real_point = None
         self.selected_render = None
         self.selected_render_depth = None
+        self.gt_pose_save_path = gt_pose_save_path
+
+    def save_pose(self):
+        current_pose_est = self.current_estimate.data[0]
+        np.save(self.gt_pose_save_path, current_pose_est)
 
     def get_real_image(self):
         img = cv2.imread(self.real_path)
@@ -155,11 +169,9 @@ class PoseInit():
     def get_rendered_image(self):
         print(self.model3d_path)
         print(self.current_estimate.data[0])
-        print(self.cam_config)
         model3d_path = self.model3d_path
         T_CO = self.current_estimate.data[0]
-        cam_conf = self.cam_config
-        img, d = render_scene(model3d_path, T_CO, cam_conf)
+        img, d = render_scene(model3d_path, T_CO, K=self.K, img_size=self.img_size)
         print(img.shape)
         
         return img
@@ -221,8 +233,7 @@ class PoseInit():
     def select_render_for_pnp(self):
         model3d_path = self.model3d_path
         T_CO = self.current_estimate.data[0]
-        cam_conf = self.cam_config
-        img, d = render_scene(model3d_path, T_CO, cam_conf)
+        img, d = render_scene(model3d_path, T_CO, K=self.K, img_size=self.img_size)
         self.selected_render = img
         self.selected_render_depth = d
 
@@ -359,13 +370,6 @@ class PoseInit():
         plt.show()
 
 
-
-
-
-
-
-
-
     @staticmethod
     def project_point_pairs(depth, points, K):
         """
@@ -388,43 +392,3 @@ class PoseInit():
 
         print(points.shape)
 
-
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    K = np.array([[336.43 ,0.0, 152.18 ],
-                [.0, 335.045, 155.54],
-                [.0,.0,1.0]])
-    np.save("K.npy", K)
-    """
-    K = np.array([[336.43 ,0.0, 160.0 ],
-                [.0, 335.045, 160.0],
-                [.0,.0,1.0]])
-    """
-    """
-    K = np.array([[1000.0 ,0.0, 600.0 ],
-                [.0, 1000.0, 600.0],
-                [.0,.0,1.0]])
-    """
-
-    cam_config = {
-        "K":K,
-        "image_resolution":320
-    }
-    T_CO = sm.SE3.Rx(0)
-
-    #T_CO = sm.SE3.Tz(3).data[0]
-    model3d_path = "step-files/node_adapter.ply"
-    #img, d = render_scene(model3d_path, T_CO.data[0], cam_config)
-    #img, d = render_scene(model3d_path, T_CO.data[0], cam_config)
-    num_options = 16
-    pose_init = PoseInit(K, cam_config, "node-adapter-welding-c-1200.jpg", model3d_path)
-    time.sleep(1) 
-    PoseInitGUI(pose_init).run()

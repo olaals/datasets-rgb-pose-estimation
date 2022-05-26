@@ -120,7 +120,10 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
 
         if(gt_render_conf["name"] == "mitsuba"):
             material_sample_list = gt_render_conf["material_samplers"]
-            gt_render_conf["material"] = sample_material(material_sample_list, asset_conf)
+            if(material_sample_list is not None):
+                gt_render_conf["material"] = sample_material(material_sample_list, asset_conf)
+            else:
+                gt_render_conf["material"] = None
             mitsuba_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, asset_conf)
         elif(gt_render_conf["name"] == "pyrender"):
             pyrender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, "real", ex_save_dir)
