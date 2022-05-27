@@ -11,6 +11,7 @@ def pose_init_wrapper(K, img_size, img_path ,mesh_path, gt_pose_save_path):
 
 def create_real_dataset(config):
     pass
+    path_dict = {}
     real_dataset_path = config["real_dataset_path"]
     new_dataset_path = config["new_dataset_path"]
     ds_classes = os.listdir(real_dataset_path)
