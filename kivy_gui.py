@@ -96,29 +96,29 @@ class PoseInitSidebar(BoxLayout):
 
 
 
+class PoseInitGUI(BoxLayout):
+    def __init__(self, example_dict):
+        super().__init__(orientation='horizontal')
+        self.example_dict = example_dict
+        img_size = example_dict["img_size"]
+        mesh_path = example_dict["mesh_path"]
+        K = example_dict["K"]
+        img_path = example_dict["img_path"]
+        gt_pose_save_path = example_dict["gt_pose_save_path"]
+        
+        self.pose_init = PoseInit(K, img_size, img_path, mesh_path, gt_pose_save_path)
 
-
-
-class PoseInitGUI(App):
-    def __init__(self, pose_init):
-        super().__init__()
-        self.pose_init = pose_init
-
-    def build(self):
-        layout = BoxLayout(orientation='horizontal')
         self.left_img = ImageDisplay()
         self.right_img = ImageDisplay()
         self.sidebar = PoseInitSidebar(self.left_img, self.right_img, self.pose_init)
-        layout.add_widget(self.sidebar)
-        layout.add_widget(self.left_img)
-        layout.add_widget(self.right_img)
+        self.add_widget(self.sidebar)
+        self.add_widget(self.left_img)
+        self.add_widget(self.right_img)
         real_img = self.pose_init.get_real_image()
         self.right_img.update(real_img)
         rendered_img = self.pose_init.get_rendered_image()
         self.left_img.update(cv2.cvtColor(np.uint8(rendered_img*255), cv2.COLOR_RGB2BGR))
 
-        print("Finished building GUI")
-        return layout
 
 
 class ImageDisplay(Image):

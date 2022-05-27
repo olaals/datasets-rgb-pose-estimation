@@ -11,6 +11,7 @@ from kivy.uix.button import Button
 from kivy.uix.widget import Widget
 import cv2
 import PIL
+from kivy_gui import PoseInitGUI
 
 def load_image(img_path):
     img = cv2.imread(img_path)
@@ -27,8 +28,11 @@ def convert_to_cv2(float_rgb_img):
     return cv2_img
 
 class SbButton(Button):
-    def __init__(self, text="", callback=None):
-        super().__init__(text=text, size_hint=(1.0, None), height=30)
+    def __init__(self, text="", callback=None, color=None):
+        if color is None:
+            super().__init__(text=text, size_hint=(1.0, None), height=30)
+        else:
+            super().__init__(text=text, size_hint=(1.0, None), height=30, background_color=color)
         self.callback = callback
         print("sb button")
         if(callback is not None):
@@ -41,7 +45,7 @@ class SbButton(Button):
 
 class ImageDisplay(Image):
     def __init__(self):
-        super(ImageDisplay, self).__init__()
+        super(ImageDisplay, self).__init__(size_hint=(None,None), height=100, width=100)
         self.current_frame = None
         start_img = np.zeros((320,320,3), dtype=np.uint8)
         start_img[:,:,1] = np.ones((320,320), dtype=np.uint8)*255
@@ -65,13 +69,12 @@ class ImageDisplay(Image):
         print("updated image for gui")
 
 
-
 class ImageCard(BoxLayout):
     def __init__(self, example_dict):
-        super().__init__(orientation='vertical')
+        super().__init__(orientation='vertical', size_hint=(None,None), height=200, width=200)
         self.image_display = ImageDisplay()
         self.add_widget(self.image_display)
-        btn = SbButton("Choose")
+        btn = Button(text="Choose", size_hint=(1.0,None), height=30)
         self.add_widget(btn)
         self.add_widget(Widget(size_hint=(None, 1.0)))
         self.add_from_dict(example_dict)
@@ -81,29 +84,51 @@ class ImageCard(BoxLayout):
         img = cv2.imread(img_path)
         self.image_display.update(img)
 
-
-
 class FileChooserSidebar(BoxLayout):
-    def __init__(self, mainwin_handler):
+    def __init__(self, mainwin_handler, ds_dict):
         #super(FileChooserSidebar, self).__init__(orientation='vertical', size_hint=(None,1.0), width=200)
         super().__init__(orientation='vertical', size_hint=(None,1.0), width=200)
         self.mainwin_handler = mainwin_handler
+        self.ds_dict = ds_dict
         next_btn = SbButton("Go to next examples",self.mainwin_handler.increment_tab)
         prev_btn = SbButton("Go to prev examples",self.mainwin_handler.decrement_tab)
         self.add_widget(next_btn)
         self.add_widget(prev_btn)
+        self.add_widget(Label(text="Select class", size_hint=(1.0,None), height=30))
+        for key in self.ds_dict:
+            btn = Button(text=key, size_hint=(1.0,None), height=30)
+            btn.bind(on_press=self.change_class_callback)
+            self.add_widget(btn)
         self.empty = Widget()
         self.add_widget(self.empty)
 
+    def change_class_callback(self, instance):
+        self.mainwin_handler.change_display_class(instance.text)
+        
+    
+
+
+class HorizontalClassTab(BoxLayout):
+    def __init__(self, main_win):
+        super().__init__(orientation='horizontal', height=30)
+        self.main_win = main_win
+
+    def add_btn(self, name, color):
+        btn = Button(text=name, background_color=color, size_hint=(1.0,None), height=30)
+        btn.bind(on_press=self.btn_callback)
+        self.add_widget(btn)
+
+    def btn_callback(self, instance):
+        self.main_win.change_display_class(instance.text)
 
 
 class SelectFileMainWin(GridLayout):
     def __init__(self, ds_dict):
-        self.rows = 2
-        self.cols = 2
+        self.rows = 6
+        self.cols = 4
         self.current_tab = 0
         self.displayed_cards = []
-        super().__init__(rows=self.rows, cols=self.cols, padding=10)
+        super().__init__(rows=self.rows, cols=self.cols, padding=10, size_hint=(1.0,1.0))
         self.ds_dict = ds_dict
         self.ds_types = []
         for key in ds_dict:
@@ -141,7 +166,7 @@ class SelectFileMainWin(GridLayout):
 
     def change_display_class(self, class_name):
         self.current_tab = 0
-        show_imgs_for_class(class_name, self.current_tab)
+        self.show_imgs_for_class(class_name, self.current_tab)
         self.active_class = class_name
 
     def increment_tab(self):
@@ -161,22 +186,46 @@ class SelectFileMainWin(GridLayout):
     def add_image_card(self,image_card):
         self.add_widget(image_card)
 
+class FileChooserLayout(BoxLayout):
+    def __init__(self, ds_dict, set_active_example):
+        super().__init__(orientation='horizontal')
+        self.ds_dict = ds_dict
+        self.file_choose_mainwin = SelectFileMainWin(self.ds_dict)
+        self.fc_sidebar = FileChooserSidebar(self.file_choose_mainwin, self.ds_dict)
+        self.add_widget(self.fc_sidebar)
+        self.add_widget(self.file_choose_mainwin)
+
+class AppBox(BoxLayout):
+    def __init__(self, ds_dict):
+        super().__init__(orientation='horizontal')
+        self.ds_dict = ds_dict
+        self.active_layout = FileChooserLayout(self.ds_dict, self.set_active_example)
+        self.add_widget(self.active_layout)
+
+    def set_file_chooser_active(self):
+        self.remove_widget(active_layout)
+        self.active_layout = FileChooserLayout(self.ds_dict)
+        self.add_widget(self.active_layout)
+
+    def set_active_example(self, example_dict):
+        self.remove_widget(active_layout)
+        self.active_layout = PoseInitGUI(example_dict)
+        self.add_widget(self.active_layout)
+
+
+
 class PoseGUI(App):
     def __init__(self, ds_dict):
         super().__init__()
         self.ds_dict = ds_dict
 
     def build(self):
-        layout = BoxLayout(orientation='horizontal')
-        self.file_choose_mainwin = SelectFileMainWin(self.ds_dict)
-        self.fc_sidebar = FileChooserSidebar(self.file_choose_mainwin)
-        layout.add_widget(self.fc_sidebar)
-        layout.add_widget(self.file_choose_mainwin)
-
-
 
         print("Finished building GUI")
-        return layout
+        return AppBox(self.ds_dict)
+
+    def show_file_chooser(self):
+        self.remove
 
 
 def create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img_size, dataset_type):
