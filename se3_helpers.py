@@ -91,6 +91,25 @@ def get_T_CO_init_and_gt(scene_config):
     return T_CO_init, T_CO_gt
 
 
+def get_T_CO_init_given_gt(T_CO_gt, WO_angle_dev, WO_transl_dev):
+    print(T_CO_gt)
+    T_WO_gt = sm.SE3.Rx(0)
+    print("T_WO_gt")
+    print(T_WO_gt)
+    T_CW = T_CO_gt*sm.SE3(T_WO_gt).inv()
+    print("T_CW")
+    print(T_CW)
+    T_WO_init_guess = apply_small_random_rotation_translation(T_WO_gt, WO_angle_dev, WO_transl_dev)
+    print("T_WO_init_guess")
+    print(T_WO_init_guess)
+    T_CO_init_guess = T_CW*T_WO_init_guess
+    #print("T_CO_init_guess")
+    #print(T_CO_init_guess)
+    return T_CO_init_guess.data[0]
+
+    
+
+
 
 
 if __name__ == '__main__':

@@ -70,11 +70,14 @@ class ImageDisplay(Image):
 
 
 class ImageCard(BoxLayout):
-    def __init__(self, example_dict):
+    def __init__(self, example_dict, view_pose_gui_example):
         super().__init__(orientation='vertical', size_hint=(None,None), height=200, width=200)
+        self.view_pose_gui_example = view_pose_gui_example
+        self.example_dict = example_dict
         self.image_display = ImageDisplay()
         self.add_widget(self.image_display)
         btn = Button(text="Choose", size_hint=(1.0,None), height=30)
+        btn.bind(on_press=self.set_pose_gui_example_callback)
         self.add_widget(btn)
         self.add_widget(Widget(size_hint=(None, 1.0)))
         self.add_from_dict(example_dict)
@@ -83,6 +86,10 @@ class ImageCard(BoxLayout):
         img_path = example_dict["img_path"]
         img = cv2.imread(img_path)
         self.image_display.update(img)
+
+    def set_pose_gui_example_callback(self,instance):
+        self.view_pose_gui_example(self.example_dict)
+        
 
 class FileChooserSidebar(BoxLayout):
     def __init__(self, mainwin_handler, ds_dict):
@@ -123,11 +130,12 @@ class HorizontalClassTab(BoxLayout):
 
 
 class SelectFileMainWin(GridLayout):
-    def __init__(self, ds_dict):
+    def __init__(self, ds_dict, view_pose_gui_example):
         self.rows = 6
         self.cols = 4
         self.current_tab = 0
         self.displayed_cards = []
+        self.view_pose_gui_example = view_pose_gui_example
         super().__init__(rows=self.rows, cols=self.cols, padding=10, size_hint=(1.0,1.0))
         self.ds_dict = ds_dict
         self.ds_types = []
@@ -160,7 +168,7 @@ class SelectFileMainWin(GridLayout):
 
         for i in range(start_idx, end_idx):
             example = examples[i]
-            img_card = ImageCard(example)
+            img_card = ImageCard(example, self.view_pose_gui_example)
             self.displayed_cards.append(img_card)
             self.add_widget(img_card)
 
@@ -187,10 +195,10 @@ class SelectFileMainWin(GridLayout):
         self.add_widget(image_card)
 
 class FileChooserLayout(BoxLayout):
-    def __init__(self, ds_dict, set_active_example):
+    def __init__(self, ds_dict, view_pose_gui_example):
         super().__init__(orientation='horizontal')
         self.ds_dict = ds_dict
-        self.file_choose_mainwin = SelectFileMainWin(self.ds_dict)
+        self.file_choose_mainwin = SelectFileMainWin(self.ds_dict, view_pose_gui_example)
         self.fc_sidebar = FileChooserSidebar(self.file_choose_mainwin, self.ds_dict)
         self.add_widget(self.fc_sidebar)
         self.add_widget(self.file_choose_mainwin)
@@ -199,17 +207,17 @@ class AppBox(BoxLayout):
     def __init__(self, ds_dict):
         super().__init__(orientation='horizontal')
         self.ds_dict = ds_dict
-        self.active_layout = FileChooserLayout(self.ds_dict, self.set_active_example)
+        self.active_layout = FileChooserLayout(self.ds_dict, self.view_pose_example_gui)
         self.add_widget(self.active_layout)
 
     def set_file_chooser_active(self):
-        self.remove_widget(active_layout)
-        self.active_layout = FileChooserLayout(self.ds_dict)
+        self.remove_widget(self.active_layout)
+        self.active_layout = FileChooserLayout(self.ds_dict, self.view_pose_example_gui)
         self.add_widget(self.active_layout)
 
-    def set_active_example(self, example_dict):
-        self.remove_widget(active_layout)
-        self.active_layout = PoseInitGUI(example_dict)
+    def view_pose_example_gui(self, example_dict):
+        self.remove_widget(self.active_layout)
+        self.active_layout = PoseInitGUI(example_dict, self.set_file_chooser_active)
         self.add_widget(self.active_layout)
 
 
@@ -228,7 +236,7 @@ class PoseGUI(App):
         self.remove
 
 
-def create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img_size, dataset_type):
+def create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img_size, dataset_type, save_dir):
     example_dict = {
             "img_path": img_path,
             "K":K,
@@ -237,19 +245,34 @@ def create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img
             "dataset_type":dataset_type,
             "mesh_path": mesh_path,
             "img_size":img_size,
+            "ex_save_dir": save_dir,
     }
     return example_dict
+
+def create_metadata(dataset_name, mesh_class, mesh_filename):
+    unix_path = os.path.join(dataset_name, mesh_class, mesh_filename)
+    metadata = {
+        "dataset_name":dataset_name,
+        "mesh_class":mesh_class,
+        "train_or_test":"",
+        "mesh_filename":mesh_filename,
+        "unix_mesh_path": unix_path,
+    }
+    
+    return metadata
 
 def create_real_dataset(config):
     real_ds_dict = {}
 
     real_dataset_path = config["real_dataset_path"]
+    dataset_name = os.path.basename(real_dataset_path)
     new_dataset_path = config["new_dataset_path"]
     ds_classes = os.listdir(real_dataset_path)
     #ds_class_paths = [os.path.join(real_dataset_path, ds_class) for ds_class in ds_classes]
     cam_mat_file = config["camera_matrix_file"]
     dataset_types = config["dataset_types"]
     img_size = config["image_size"]
+ 
     #print(ds_class_paths)
     for ds_class in ds_classes:
         real_ds_dict[ds_class] = []
@@ -263,7 +286,9 @@ def create_real_dataset(config):
                 gt_pose_save_path = os.path.join(save_dir, "T_CO_gt.npy")
                 os.makedirs(save_dir, exist_ok=True)
                 img_path = os.path.join(imgs_dir, img_filename)
-                ex_dict = create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img_size, dataset_type)
+                ex_dict = create_example_dict(img_path, K, gt_pose_save_path, ds_class, mesh_path, img_size, dataset_type, save_dir)
+                metadata = create_metadata(dataset_name, ds_class, ds_class+".ply")
+                ex_dict["metadata"] = metadata
                 real_ds_dict[ds_class].append(ex_dict)
     return real_ds_dict
 

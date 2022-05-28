@@ -12,7 +12,7 @@ import cv2
 import yaml
 
 def save_img_cv2(img, path):
-    cv_img = (img*254.01).astype(np.uint8)
+    cv_img = (img*254.99).astype(np.uint8)
     cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
     cv2.imwrite(path, cv_img)
 

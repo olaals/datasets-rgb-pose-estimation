@@ -107,10 +107,13 @@ class CustomShaderCache():
             self.program = pyrender.shader_program.ShaderProgram(mesh_vert, mesh_frag, defines=defines)
         return self.program
 
-def render_normals(object_path, T_CO, cam_config):
+def render_normals(object_path, T_CO, cam_config=None, K=None, img_size=None):
     assert T_CO.shape == (4,4)
-    img_size = cam_config["image_resolution"]
-    K = get_camera_matrix(cam_config)
+    if(cam_config is not None):
+        K = get_camera_matrix(cam_config)
+        img_size = cam_config["image_resolution"]
+    else:
+        assert (K is not None) and (img_size is not None)
 
     T_CO = sm.SE3.Rx(180, unit='deg').data[0]@T_CO # convert from OpenCV camera frame to OpenGL camera frame
     T_identity = sm.SE3.Rx(0).data[0]

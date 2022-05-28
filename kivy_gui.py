@@ -1,12 +1,15 @@
 import numpy as np
 import cv2
-from se3_helpers import look_at_SE3
+from se3_helpers import look_at_SE3, get_T_CO_init_given_gt
 import spatialmath as sm
-from pyrender_render import render_scene
+from pyrender_render import render_scene, render_normals
 import time
 import matplotlib.pyplot as plt
 import os
 import itertools
+import trimesh as tm
+from create_dataset import sample_vertices
+import yaml
 
 from kivy.app import App
 from kivy.uix.label import Label
@@ -23,8 +26,9 @@ from scipy.signal import convolve2d
 
 
 class PoseInitSidebar(BoxLayout):
-    def __init__(self, left_img, right_img, pose_init):
+    def __init__(self, left_img, right_img, pose_init, set_file_chooser_active):
         super(PoseInitSidebar, self).__init__(orientation='vertical', size_hint=(None,1.0), width=300)
+        self.set_file_chooser_active = set_file_chooser_active
         self.left_img = left_img
         self.right_img = right_img
         self.pose_init = pose_init
@@ -36,13 +40,19 @@ class PoseInitSidebar(BoxLayout):
         self.show_overlap_btn.bind(on_press=self.show_overlap_cb)
         self.continue_button = Button(text="Continue to PnP", size_hint=(1.0, None), height=30)
         self.continue_button.bind(on_press=self.continue_button_callback)
+        self.back_to_file_chooser_btn = Button(text="Back to file chooser", size_hint=(1.0, None), height=30)
+        self.back_to_file_chooser_btn.bind(on_press=self.file_chooser_callback)
         self.add_widget(self.increment_rot_button)
         self.add_widget(self.decrement_rot_button)
         self.add_widget(self.show_overlap_btn)
         self.add_widget(self.continue_button)
+        self.add_widget(self.back_to_file_chooser_btn)
         self.empty_widget = Widget()
         self.add_widget(self.empty_widget)
         print("Initiated sidebar")
+
+    def file_chooser_callback(self, instance):
+        self.set_file_chooser_active()
 
     def show_overlap_cb(self, instance):
         self.pose_init.overlap_imgs()
@@ -76,6 +86,7 @@ class PoseInitSidebar(BoxLayout):
         self.save_pose_btn.bind(on_press=self.save_pose_callback)
         self.add_widget(self.select_pair_button)
         self.add_widget(self.solve_pnp)
+        self.add_widget(self.save_pose_btn)
         self.add_widget(Widget())
 
     def select_pair_callback(self, instance):
@@ -91,13 +102,14 @@ class PoseInitSidebar(BoxLayout):
 
     def save_pose_callback(self, instance):
         self.pose_init.save_pose()
+        self.set_file_chooser_active()
 
 
 
 
 
 class PoseInitGUI(BoxLayout):
-    def __init__(self, example_dict):
+    def __init__(self, example_dict, set_file_chooser_active):
         super().__init__(orientation='horizontal')
         self.example_dict = example_dict
         img_size = example_dict["img_size"]
@@ -105,12 +117,14 @@ class PoseInitGUI(BoxLayout):
         K = example_dict["K"]
         img_path = example_dict["img_path"]
         gt_pose_save_path = example_dict["gt_pose_save_path"]
+        ex_save_dir = example_dict["ex_save_dir"]
+        metadata = example_dict["metadata"]
         
-        self.pose_init = PoseInit(K, img_size, img_path, mesh_path, gt_pose_save_path)
+        self.pose_init = PoseInit(K, img_size, img_path, mesh_path, gt_pose_save_path, ex_save_dir, metadata)
 
         self.left_img = ImageDisplay()
         self.right_img = ImageDisplay()
-        self.sidebar = PoseInitSidebar(self.left_img, self.right_img, self.pose_init)
+        self.sidebar = PoseInitSidebar(self.left_img, self.right_img, self.pose_init, set_file_chooser_active)
         self.add_widget(self.sidebar)
         self.add_widget(self.left_img)
         self.add_widget(self.right_img)
@@ -140,14 +154,26 @@ class ImageDisplay(Image):
         self.texture = image_texture
         print("updated image for gui")
 
+def save_image(img, img_path):
+    img = convert_to_cv2(img)
+    cv2.imwrite(img_path, img)
+
+def convert_to_cv2(float_rgb_img):
+    uint_img = np.uint8(float_rgb_img*254.99)
+    cv2_img = cv2.cvtColor(uint_img, cv2.COLOR_RGB2BGR)
+    return cv2_img
+
+
 
 class PoseInit():
-    def __init__(self, K, img_size, real_path, model3d_path, gt_pose_save_path, num_options=16, z_incr=0.1):
+    def __init__(self, K, img_size, real_path, model3d_path, gt_pose_save_path, save_dir, metadata, num_options=16, z_incr=0.1):
+        self.metadata = metadata
         self.K = K
         self.img_size = img_size
         self.real_path = real_path
         self.model3d_path = model3d_path
         self.num_options = num_options
+        self.ex_save_dir = save_dir
         self.z_incr = z_incr
         self.current_estimate = look_at_SE3([1.6,0,1.2], [0,0,0.25], [0,0,1]).inv()
         self.real_point_pairs = []
@@ -159,8 +185,35 @@ class PoseInit():
         self.gt_pose_save_path = gt_pose_save_path
 
     def save_pose(self):
-        current_pose_est = self.current_estimate.data[0]
-        np.save(self.gt_pose_save_path, current_pose_est)
+        save_dir = self.ex_save_dir
+        current_pose_est = self.current_estimate
+        np.save(self.gt_pose_save_path, current_pose_est.data[0])
+        np.save(os.path.join(save_dir, "K.npy"), self.K)
+        cv2.imwrite(os.path.join(save_dir, "real.png"), self.get_real_image())
+        mesh = tm.load(self.model3d_path, force='mesh')
+        tm.exchange.export.export_mesh(mesh, os.path.join(save_dir, "mesh.ply"))
+        verts = sample_vertices(self.model3d_path)
+        np.save(os.path.join(save_dir, "vertices.npy"), verts)
+        T_CO_init = get_T_CO_init_given_gt(current_pose_est, 30, 0.1)
+        np.save(os.path.join(save_dir, "T_CO_init.npy"), T_CO_init)
+
+        img, d = render_scene(self.model3d_path, T_CO_init, K=self.K, img_size=self.img_size)
+        save_image(img, os.path.join(save_dir, "init.png"))
+        np.save(os.path.join(save_dir, "init_depth.npy"), d)
+        normals = render_normals(self.model3d_path, T_CO_init, K=self.K, img_size=self.img_size)
+        save_image(normals, os.path.join(save_dir, "init_normal.png"))
+
+        metadata_save_path = os.path.join(save_dir, "metadata.yml")
+        with open(metadata_save_path, 'w') as outfile:
+            yaml.dump(self.metadata, outfile, default_flow_style=False)
+
+
+
+
+        #print(T_CO_init)
+        #print(T_CO_gt)
+
+
 
     def get_real_image(self):
         img = cv2.imread(self.real_path)
@@ -331,7 +384,7 @@ class PoseInit():
     def create_silhouette(img):
         gray = np.mean(img, axis=2)
         sil = np.where(gray>0, 1.0, 0.0)
-        filt = np.ones((11,11))
+        filt = np.ones((3,3))
         res = convolve2d(sil, filt, mode='same')
         res = np.clip(res, 0.0, 1.0)
         sil = res-sil
