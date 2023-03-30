@@ -1,7 +1,6 @@
-import mitsuba
-mitsuba.set_variant('scalar_rgb')
-from mitsuba.core import Bitmap, Struct, Thread, ScalarTransform4f
-from mitsuba.core.xml import load_dict
+import mitsuba as mi
+mi.set_variant('scalar_rgb')
+from mitsuba import ScalarTransform4f
 import os
 import numpy as np
 from se3_helpers import *
@@ -61,7 +60,7 @@ def add_spot(scene, T_CO):
         "type":"spot",
         "intensity":{
             "type":"uniform",
-            "value":5.0
+            "value":10.0
         },
         "cutoff_angle":80,
         "to_world": ScalarTransform4f(T_WC),
@@ -93,17 +92,15 @@ def add_camera(scene, T_CO, intrinsics, sample_count):
         },
     }
 
+
 def render(scene, gamma=2.2):
-    scene = load_dict(scene)
-    camera = scene.sensors()[0]
-    scene.integrator().render(scene, camera)
-    film = camera.film()
-    bmp = film.bitmap(raw=True)
-    img = np.array(bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, srgb_gamma=False))
-    img = np.where(img<0.0, 0.0, img).astype(np.float32)
-    img = exposure.adjust_gamma(img, 1.0/gamma)
+    scene = mi.load_dict(scene)
+    img = mi.render(scene)
+    img = img**(1.0/gamma)
     img = np.where(img>1.0, 1.0, img)
+    img = np.array(img)
     return img
+
     
 
 def render_scene(obj_path, path_depth, T_CO, cam_intr, hdr_path, env_scale, material, samples, gamma):

@@ -51,6 +51,9 @@ def add_object(scene, mesh_path, T_WO):
         "transform":T_WO
     })
 
+def add_material(scene, material_dict):
+    scene["material"] = material_dict
+
 def cycles_render_conf(device, write_path):
     assert (device == 'gpu' or device == 'cpu')
     return {
@@ -61,9 +64,7 @@ def cycles_render_conf(device, write_path):
 
 
 
-def bl_render_scene(blender_conf, obj_path, T_CO, cam_intr, hdr_path, env_intsy, save_path):
-    print(T_CO)
-    
+def bl_render_scene(blender_conf, obj_path, T_CO, cam_intr, hdr_path, env_intsy, save_path, asset_conf):
     scene = init_scene()
     add_object(scene, obj_path, np.identity(4))
     add_camera(scene, cam_intr, T_CO)
@@ -72,8 +73,63 @@ def bl_render_scene(blender_conf, obj_path, T_CO, cam_intr, hdr_path, env_intsy,
     bl_exec_path = blender_conf["exec_path"]
     py_script_path = blender_conf["py_script_path"]
     cache_dir = blender_conf["cache_dir"]
-
+    # assign material
+    material_sample_list = blender_conf["material_samplers"]
+    material = sample_material(material_sample_list, asset_conf)
+    add_material(scene, material)
     call_blender_subprocess(bl_exec_path, py_script_path, cache_dir, scene, render_conf)
+
+
+def sample_material(material_sample_list, asset_paths):
+    prob_list = []
+    for mat_sample in material_sample_list:
+        prob_list.append(mat_sample["probability_weight"])
+    prob_list = np.array(prob_list)*1.0
+    prob_list = prob_list/np.sum(prob_list)
+    print(material_sample_list)
+    sampled_material = np.random.choice(material_sample_list, 1, p=prob_list)[0]
+    if sampled_material["type"] == 'pbr':
+        return sample_pbr(sampled_material, asset_paths)
+    elif sampled_material["type"] == 'bsdf-metal':
+        return sample_bsdf_metal(sampled_material, asset_paths)
+    elif sampled_material["type"] == 'standard':
+        return sampled_material
+    else:
+        print("Material type is not implemented")
+        assert False
+
+def sample_pbr(pbr_dict, asset_conf):
+    print("sample pbr")
+    print(pbr_dict)
+    pbr_type = pbr_dict["pbr_type"]
+    pbr_dir = asset_conf["pbr_dir"]
+    roughness_range = pbr_dict["roughness_range"]
+    roughness = np.random.uniform(roughness_range[0], roughness_range[1])
+    pbr_dir_path = os.path.join(pbr_dir, pbr_type)
+    pbr_paths_list = [os.path.join(pbr_dir_path, dirname) for dirname in os.listdir(pbr_dir_path)]
+    sampled_pbr_path = np.random.choice(pbr_paths_list)
+    pbr_dict = {
+        "type": "pbr",
+        "dir_path": sampled_pbr_path,
+        "roughness": roughness
+    }
+    print("pbr dict")
+    print(pbr_dict)
+    return pbr_dict
+
+def sample_bsdf_metal(bsdf_metal_dict, asset_conf):
+    print("sample bsdf metal")
+    roughness_range = bsdf_metal_dict["roughness_range"]
+    base_color_range = bsdf_metal_dict["base_color_range"]
+    roughness = np.random.uniform(roughness_range[0], roughness_range[1])
+    base_color = np.random.uniform(base_color_range[0], base_color_range[1])
+
+    bsdf_metal_dict = {
+            "type": "bsdf-metal",
+            "roughness": roughness,
+            "base_color": base_color,
+    }
+    return bsdf_metal_dict
 
 
 
@@ -94,8 +150,7 @@ def call_blender_subprocess(bl_exec_path, py_path, cache_dir, scene_conf, render
     print(res)
     print("")
 
-
-if __name__ == '__main__':
+def test_render():
     obj_path = "3d-datasets/ModelNet10-norm-clean-ply/chair/train/chair_0729_opt_HR.ply"
     T_WC = look_at_SE3([5,5,1],[0,0,0],[0,0,1])
     T_WC.plot()
@@ -117,6 +172,10 @@ if __name__ == '__main__':
     bl_render_scene(blender_conf, obj_path, T_CO, cam_intr, hdr_path, 1.0, save_path)
 
 
+if __name__ == '__main__':
+    mat1 = {
+        ""
+    }
 
 
 

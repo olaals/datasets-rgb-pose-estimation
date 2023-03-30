@@ -24,53 +24,43 @@ def get_config():
             "num_sample_vertices": 1000,  # number of vertices sampled from the mesh
             "dataset_name": "ModelNet10-norm-clean-ply",
             "split":{
-                "train":16,
-                "validation": 20,
-                "test": 20,
+                "train":25000,
+                "validation": 1000,
+                "test": 1000,
             },
 
         },
         "real_render": {
             "name":"mitsuba", # pyrender or mitsuba
             "material_samplers": [
-                #metal_sampler("Al", -2, -0.3, 0.8), 
-                #metal_sampler("Ag", -2, -0.3, 0.2),
-                texture_sampler("brick", 1.0)
+                metal_sampler("Al", -0.8, -0.3, 0.4), 
+                metal_sampler("Ag", -0.8, -0.3, 0.2),
+                metal_sampler("Be", -0.8, -0.3, 0.2),
+                metal_sampler("Hg", -0.8, -0.3, 0.2),
+                #texture_sampler("brick", 1.0)
             ],
-            "samples":64,
+            "samples":128,
             "path_depth":4,
-            "env_map_types": ["industrial"], # list or constant
+            "env_map_types": ["industrial-4k"], # list or constant
             "use_spot_light_no_env":False,
-            "env_map_multiplier": 0.8,
+            "env_map_multiplier": 1.0,
             "rgb_gamma": 2.2,
-            "nested_pyrender": None
+            "nested_pyrender": None,
         },
-        "guess_render": {
-            "name":"mitsuba", # pyrender or mitsuba
-            "material_samplers": [
-                #metal_sampler("Al", -2, -0.3, 0.8), 
-                #metal_sampler("Ag", -2, -0.3, 0.2),
-                texture_sampler("brick", 1.0)
-            ],
-            "samples":64,
-            "path_depth":4,
-            "env_map_types": ["industrial"], # list or constant
-            "use_spot_light_no_env":True,
-            "env_map_multiplier": 0.8,
-            "rgb_gamma": 2.2,
-            "nested_pyrender": pyrender_conf(True, True)
-        },
+        "guess_render": pyrender_conf(True,True),
         "camera_intrinsics":{
             "focal_length": 50, #mm
             "sensor_width": 36, #mm
-            "image_resolution": 320, # width=height
+            "image_resolution": 720, # width=height
         },
         "scene_config":{
-            "distance_cam_to_world": 2.5, #meters
+            "distance_cam_to_world": 2.8, #meters
             "distance_cam_to_world_deviation":0.1, #meters
             "world_to_object_gt_transl_deviation": 0.1, #meters
             "world_to_object_transl_deviation": 0.1, #meters
             "world_to_object_angle_deviation":30, #degrees
+            "sampling":"normal",
+            "sample_only_transl_prob":0.2,
         },
         "asset_conf":{
             "env_maps_dir": os.path.join("assets", "hdri"),
