@@ -45,14 +45,11 @@ def pyrender_handler(T_CO, obj_path, render_conf, cam_conf, init_or_real, save_d
     norm_save_path = os.path.join(save_dir, init_or_real+"_normal.png")
     depth_save_path = os.path.join(save_dir, init_or_real+"_depth.npy")
     save_img_cv2(img, img_save_path)
-    
     rend_normal = render_conf["render_normal"]
     rend_depth = render_conf["render_depth"]
-
     if rend_normal:
         normal = render_normals(obj_path, T_CO, cam_conf)
         save_img_cv2(normal, norm_save_path)
-
     if rend_depth:
         np.save(depth_save_path, depth)
 
@@ -68,22 +65,41 @@ def sample_env_map(env_map_types, env_maps_dir, train_or_test):
         assert False
     return sampled_env_map
 
+def sample_env_map_intensity(intensity_range):
+    if isinstance(intensity_range, float):
+        return intensity_range
+    return np.random.uniform(intensity_range[0], intensity_range[1])
 
-def blender_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir, env_map_path):
+def blender_handler(T_CO, obj_path, render_conf, cam_conf, train_or_test, init_or_real, save_dir, env_map_path, asset_conf):
     img_save_path = os.path.join(save_dir, init_or_real+".png")
-    bl_render_scene(render_conf, obj_path, T_CO, cam_conf, env_map_path, 1.0, img_save_path)
-
+    env_map_intensity = render_conf["env_map_multiplier"]
+    env_map_mult = sample_env_map_intensity(env_map_intensity)
+    print("env map intensity", env_map_mult)
+    bl_render_scene(render_conf, obj_path, T_CO, cam_conf, env_map_path, env_map_mult, img_save_path, asset_conf)
 
 def sample_texture(texture_class):
     texture_class_dir = os.path.join("assets", "textures", texture_class)
     texture_paths = [os.path.join(texture_class_dir, fn) for fn in os.listdir(texture_class_dir)]
     return random.choice(texture_paths)
 
-def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path):
+def get_camera_matrix(intrinsics):
+    focal_len = intrinsics["focal_length"]
+    img_res = intrinsics["image_resolution"]
+    sensor_width = intrinsics["sensor_width"]
+    pix_per_mm = sensor_width/img_res
+    fx = fy = focal_len/pix_per_mm
+    vx = vy = img_res/2
+    K = np.array([[fx, 0, vx],[0, fy, vy],[0,0,1]])
+    return K
+
+
+def save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path, camera_intr):
     verts = sample_vertices(mesh_path, num_verts=1000)
     np.save(os.path.join(ex_save_dir, "vertices.npy"), verts)
     np.save(os.path.join(ex_save_dir, "T_CO_init.npy"), T_CO_init)
     np.save(os.path.join(ex_save_dir, "T_CO_gt.npy"), T_CO_gt)
+    K = get_camera_matrix(camera_intr)
+    np.save(os.path.join(ex_save_dir, "K.npy"), K)
     metadata = {}
     split = os.path.normpath(mesh_path).split(os.sep)
     metadata["mesh_filename"] = os.path.basename(mesh_path)
@@ -105,18 +121,24 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
     cam_intr = config["camera_intrinsics"]
     scene_conf = config["scene_config"]
     asset_conf = config["asset_conf"]
+    pose_sampling = scene_conf["sampling"]
 
     os.makedirs(save_dir, exist_ok=True)
     for tr_ex in range(train_exs):
         ex_save_dir = os.path.join(save_dir, "ex"+f'{tr_ex:06d}')
         os.makedirs(ex_save_dir, exist_ok=True)
-        T_CO_init, T_CO_gt = get_T_CO_init_and_gt(scene_conf)
+        T_CO_gt = get_T_CO_gt(scene_conf).data[0]
+        print(type(T_CO_gt))
+        T_CO_init = np.identity(4)
         mesh_path = sample_mesh_path(mesh_class_dir)
+        _,gt_depth = render_scene(mesh_path, T_CO_gt, cam_intr)
+        save_img_cv2(np.where(gt_depth>0, 255, 0), os.path.join(ex_save_dir, "gt_mask.png"))
+
         env_map_path = None
         if("env_map_types" in gt_render_conf):
             env_map_types = gt_render_conf["env_map_types"]
             env_map_path = sample_env_map(env_map_types, asset_conf["env_maps_dir"], dataset_type)
-        save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path)
+        save_npy_files(ex_save_dir, mesh_path, T_CO_init, T_CO_gt, env_map_path, cam_intr)
 
         if(gt_render_conf["name"] == "mitsuba"):
             material_sample_list = gt_render_conf["material_samplers"]
@@ -128,10 +150,11 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
         elif(gt_render_conf["name"] == "pyrender"):
             pyrender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, "real", ex_save_dir)
         elif(gt_render_conf["name"] == "blender"):
-            blender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, env_map_path)
+            blender_handler(T_CO_gt, mesh_path, gt_render_conf, cam_intr, dataset_type, "real", ex_save_dir, env_map_path, asset_conf)
         else:
             assert False
 
+        """
         if(guess_render_conf["name"] == "mitsuba"):
             guess_render_conf["material"] = gt_render_conf["material"]
             mitsuba_handler(T_CO_init, mesh_path, guess_render_conf, cam_intr, dataset_type, "init", ex_save_dir, asset_conf)
@@ -141,6 +164,7 @@ def process_class_dir(train_exs, dataset_type, mesh_class_dir, save_dir, config)
 
         elif(guess_render_conf["name"] == "pyrender"):
             pyrender_handler(T_CO_init, mesh_path, guess_render_conf, cam_intr, "init", ex_save_dir)
+        """
 
 
 
