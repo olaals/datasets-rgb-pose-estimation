@@ -7,8 +7,17 @@ The two-step process involves generating high-quality images and then cropping t
 Place a 3D model dataset in 3d-datasets folder with the following structure:
 ```bash
 3d-datasets
-
-└── mesh_class_1
+├── mesh_class_1
+│    ├── test
+│    │  ├── test_mesh_1.ply
+│    │  ├── test_mesh_1.ply
+│    │  └── ...
+│    └── train
+│       ├── train_mesh_1.ply
+│       ├── train_mesh_2.ply
+│       └── ...
+│
+└── mesh_class_2
     ├── test
     │   ├── test_mesh_1.ply
     │   ├── test_mesh_2.ply
