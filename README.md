@@ -7,6 +7,8 @@ This Github repository contains code for generating synthetic datasets for pose 
 The two-step process involves generating high-quality images and then cropping them to create the final training or testing data. This approach allows researchers and developers to generate large amounts of training data and control the parameters of the scenes to create diverse scenarios for testing their pose estimation models. 
 
 ## Prerequisites
+### Download Blender
+If [Blender](https://www.blender.org/) is used as the rendering backend, download an executable and specify the path to it in the config file.
 ### 3D models
 Place a 3D model dataset in 3d-datasets folder with the following structure:
 ```bash
