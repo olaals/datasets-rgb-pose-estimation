@@ -7,6 +7,7 @@ This Github repository contains code for generating synthetic datasets for pose 
 The two-step process involves generating high-quality images and then cropping them to create the final training or testing data. This approach allows researchers and developers to generate large amounts of training data and control the parameters of the scenes to create diverse scenarios for testing their pose estimation models. 
 
 ## Prerequisites
+### 3D models
 Place a 3D model dataset in 3d-datasets folder with the following structure:
 ```bash
 3d-datasets
@@ -31,6 +32,14 @@ Place a 3D model dataset in 3d-datasets folder with the following structure:
         └── ...
 ---
 ```
+
+### Textures
+Object materials can either be generated procedurally or with download textures.
+For downloaded textures, place it in [assets/pbrs](assets/pbrs) such as [Metal001_1K-JPG](assets/pbrs/metal/Metal001_1K-JPG)
+More materials can be found at [ambientcg](https://ambientcg.com/)
+
+### Background
+Backgrounds granting realstic lightning is included in the form of HDR images. The HDR images are placed in [assets/hdri](assets/hdri)
 
 ## Creating a dataset
 ```bash
