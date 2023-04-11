@@ -33,6 +33,10 @@ Place a 3D model dataset in 3d-datasets folder with the following structure:
 ---
 ```
 
+A 3d model dataset may have vastly different sizes of the 3D models. It is recommended to have a similar size of all 3D models such that they have similar sizes in the rendering (see [normalization script](3d-datasets/normalize_modelnet10_cleaned.py)). An example of a 3D model dataset found online is [Modelnet10/40](https://modelnet.cs.princeton.edu/).
+
+
+
 ### Textures
 Object materials can either be generated procedurally or with download textures.
 For downloaded textures, place it in [assets/pbrs](assets/pbrs) such as [Metal001_1K-JPG](assets/pbrs/metal/Metal001_1K-JPG)
