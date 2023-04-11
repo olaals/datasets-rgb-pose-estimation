@@ -43,7 +43,7 @@ For downloaded textures, place it in [assets/pbrs](assets/pbrs) such as [Metal00
 More materials can be found at [ambientcg](https://ambientcg.com/)
 
 ### Background
-Backgrounds granting realstic lightning is included in the form of HDR images. The HDR images are placed in [assets/hdri](assets/hdri)
+Backgrounds granting realstic lightning is included in the form of HDR images. The HDR images are placed in [assets/hdri](assets/hdri). More HDRIs can be found at [polyhaven](https://polyhaven.com/hdris)
 
 ## Creating a dataset
 ```bash
