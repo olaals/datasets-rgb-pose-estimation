@@ -1,0 +1,8 @@
+numpy
+spatialmath-python
+pyrender
+mitsuba
+scikit-image
+yaml
+matplotlib
+
