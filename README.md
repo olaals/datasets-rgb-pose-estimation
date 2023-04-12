@@ -8,7 +8,7 @@ The two-step process involves generating high-quality images and then cropping t
 
 ## Prerequisites
 ### Download Blender
-If [Blender](https://www.blender.org/) is used as the rendering backend, download an executable and specify the path to it in the config file.
+If [Blender](https://www.blender.org/) is used as the rendering backend, download Blender and specify the path to the executable in the config file.
 ### 3D models
 Place a 3D model dataset in 3d-datasets folder with the following structure:
 ```bash
@@ -47,13 +47,18 @@ More materials can be found at [ambientcg](https://ambientcg.com/)
 ### Background
 Backgrounds granting realstic lightning is included in the form of HDR images. The HDR images are placed in [assets/hdri](assets/hdri). More HDRIs can be found at [polyhaven](https://polyhaven.com/hdris)
 
+
+
 ## Creating a dataset
+The creation of a dataset is split into two parts, rendering and cropping. Rendering is a time consuming process, and specifying the exact parameters of the intial pose estimates and crop may save time if redone.
+### Rendering
+To create a rendered dataset run the following command
 ```bash
 python create_dataset.py configs/MN10-blender.py
 ```
 
-
-## Cropping a dataset
+### Cropping a dataset
+To create the final cropped dataset with initial pose estimates run the following command
 ```
 python crop_dataset.py configs-crop
 ```
